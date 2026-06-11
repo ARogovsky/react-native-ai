@@ -3,14 +3,13 @@ import {
 } from 'react-native'
 import { useContext } from 'react'
 import { Icon } from './Icon'
-import { ThemeContext, AppContext } from '../../src/context'
+import { ThemeContext } from '../../src/context'
+import { useChat } from '../ChatProvider'
 import FontAwesome from '@expo/vector-icons/FontAwesome5'
 
 export function Header() {
   const { theme } = useContext(ThemeContext)
-  const {
-    handlePresentModalPress
-  } = useContext(AppContext)
+  const { openMenu } = useChat()
   const styles = getStyles(theme)
 
   return (
@@ -20,10 +19,10 @@ export function Header() {
         style={styles.buttonContainer}
         underlayColor={'transparent'}
         activeOpacity={0.6}
-        onPress={handlePresentModalPress}
+        onPress={openMenu}
       >
         <FontAwesome
-          name="ellipsis-h"
+          name="bars"
           size={20}
           color={theme.textColor}
         />
