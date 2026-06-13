@@ -1,5 +1,14 @@
+# pnpm v11 reads settings from here (no longer from package.json#pnpm).
+# Flat node_modules so React Native / Expo (Metro) + jest-expo resolve correctly.
+nodeLinker: hoisted
+
+# Decide build scripts explicitly so CI (pnpm in CI mode) doesn't fail with
+# ERR_PNPM_IGNORED_BUILDS. None of these need to build for our app:
+#  - bufferutil / utf-8-validate: optional native ws speedups (JS fallback is fine)
+#  - core-js: postinstall is only a funding message
+#  - browser-tabs-lock: Clerk cross-tab helper, unused on native
 allowBuilds:
-  browser-tabs-lock: set this to true or false
-  bufferutil: set this to true or false
-  core-js: set this to true or false
-  utf-8-validate: set this to true or false
+  browser-tabs-lock: false
+  bufferutil: false
+  core-js: false
+  utf-8-validate: false
