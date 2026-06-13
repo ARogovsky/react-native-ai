@@ -116,6 +116,7 @@ export function AuthScreen() {
             <Text style={styles.label}>{t.emailLabel}</Text>
             <TextInput
               style={styles.input}
+              testID="auth-email"
               value={email}
               onChangeText={setEmail}
               placeholder={t.emailPlaceholder}
@@ -126,13 +127,14 @@ export function AuthScreen() {
               textContentType="emailAddress"
             />
             <Text style={styles.hint}>{t.authHint}</Text>
-            <PrimaryButton label={t.sendCode} onPress={sendCode} loading={loading} theme={theme} />
+            <PrimaryButton testID="auth-send-code" label={t.sendCode} onPress={sendCode} loading={loading} theme={theme} />
           </>
         ) : (
           <>
             <Text style={styles.label}>{t.codeLabel}</Text>
             <TextInput
               style={styles.input}
+              testID="auth-code"
               value={code}
               onChangeText={setCode}
               placeholder={t.codePlaceholder}
@@ -141,7 +143,7 @@ export function AuthScreen() {
               autoComplete="one-time-code"
               textContentType="oneTimeCode"
             />
-            <PrimaryButton label={t.verify} onPress={verify} loading={loading} theme={theme} />
+            <PrimaryButton testID="auth-verify" label={t.verify} onPress={verify} loading={loading} theme={theme} />
           </>
         )}
 
@@ -156,14 +158,17 @@ function PrimaryButton({
   onPress,
   loading,
   theme,
+  testID,
 }: {
   label: string
   onPress: () => void
   loading: boolean
   theme: any
+  testID?: string
 }) {
   return (
     <TouchableHighlight
+      testID={testID}
       underlayColor="transparent"
       onPress={onPress}
       disabled={loading}

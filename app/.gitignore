@@ -34,3 +34,7 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Google Play service account key (EAS submit) — NEVER commit
+google-service-account*.json
+*-service-account*.json

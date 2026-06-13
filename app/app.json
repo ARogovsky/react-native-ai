@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "ELLI",
+    "slug": "elli",
+    "owner": "elli-com",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,20 +17,25 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.app"
+      "bundleIdentifier": "com.elli.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.app"
+      "package": "com.elli.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "75889013-b98e-45f7-945a-4ec23a03555b"
+      }
+    }
   }
 }

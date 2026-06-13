@@ -90,13 +90,14 @@ export function Chat() {
       <View style={styles.chatInputContainer}>
         <TextInput
           style={styles.input}
+          testID="chat-input"
           onChangeText={setInput}
           placeholder={t.inputPlaceholder}
           placeholderTextColor={theme.placeholderTextColor}
           value={input}
           multiline
         />
-        <TouchableHighlight underlayColor={'transparent'} activeOpacity={0.65} onPress={onSend}>
+        <TouchableHighlight testID="chat-send" underlayColor={'transparent'} activeOpacity={0.65} onPress={onSend}>
           <View style={styles.chatButton}>
             <Ionicons name="arrow-up-outline" size={20} color={theme.tintTextColor} />
           </View>

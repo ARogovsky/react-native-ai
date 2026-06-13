@@ -1,0 +1,47 @@
+# Critical-path E2E smoke for the ELLI mobile client.
+# Journey: sign in -> send a message (real backend stream) -> open menu ->
+#          new chat -> reopen menu -> select the previous session (history loads).
+# Run against a build that points at a live backend (EXPO_PUBLIC_*_API_URL) and a
+# Clerk DEV key. Designed for AWS Device Farm or `maestro test`.
+appId: com.elli.app
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+# 1) Authenticate (subflow).
+- runFlow: auth.yaml
+
+# 2) Send a message; our own echoed user bubble must appear.
+- tapOn:
+    id: "chat-input"
+- inputText: "Hello E2E test"
+- tapOn:
+    id: "chat-send"
+- assertVisible: "Hello E2E test"
+
+# 3) Open the menu and start a new chat (composer should be empty again).
+- tapOn:
+    id: "header-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-new-chat"
+    timeout: 10000
+- tapOn:
+    id: "menu-new-chat"
+
+# 4) Reopen the menu — the just-created session should be listed — and select it.
+#    Backend creates/persists the session on stream completion, so allow time.
+- tapOn:
+    id: "header-menu"
+- extendedWaitUntil:
+    visible:
+      id: "menu-session-row"
+    timeout: 30000
+- tapOn:
+    id: "menu-session-row"
+
+# 5) History for that session loads -> our earlier message is shown again.
+- extendedWaitUntil:
+    visible: "Hello E2E test"
+    timeout: 20000

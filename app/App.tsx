@@ -8,8 +8,8 @@ import * as themes from './src/theme'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { ActionSheetProvider } from '@expo/react-native-action-sheet'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { LogBox } from 'react-native'
-import { ClerkProvider, ClerkLoaded, Show } from '@clerk/expo'
+import { LogBox, View, ActivityIndicator, Text } from 'react-native'
+import { ClerkProvider, ClerkLoaded, ClerkLoading, Show } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { AuthScreen } from './src/auth/AuthScreen'
 import { ChatProvider } from './src/ChatProvider'
@@ -56,6 +56,12 @@ export default function App() {
         <ThemeContext.Provider
           value={{ theme: getTheme(theme), themeName: theme, setTheme: _setTheme }}
         >
+          <ClerkLoading>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+              <ActivityIndicator />
+              <Text style={{ marginTop: 12, color: '#666' }}>Loading…</Text>
+            </View>
+          </ClerkLoading>
           <ClerkLoaded>
             <Show when="signed-out">
               <AuthScreen />

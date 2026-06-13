@@ -17,6 +17,7 @@ export function Header() {
       <Icon size={34} fill={theme.textColor} />
       <TouchableHighlight
         style={styles.buttonContainer}
+        testID="header-menu"
         underlayColor={'transparent'}
         activeOpacity={0.6}
         onPress={openMenu}

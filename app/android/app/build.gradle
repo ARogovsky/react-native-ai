@@ -89,7 +89,7 @@ android {
 
     namespace 'com.anonymous.app'
     defaultConfig {
-        applicationId 'com.anonymous.app'
+        applicationId 'com.elli.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -125,6 +125,11 @@ android {
         jniLibs {
             def enableLegacyPackaging = findProperty('expo.useLegacyPackaging') ?: 'false'
             useLegacyPackaging enableLegacyPackaging.toBoolean()
+        }
+        resources {
+            // okhttp3 logging-interceptor + jspecify ship overlapping OSGI metadata.
+            // OSGI manifests are unused on Android; drop the whole dir to avoid merge clashes.
+            excludes += ['META-INF/versions/9/OSGI-INF/**', 'META-INF/versions/9/OSGI-INF/MANIFEST.MF']
         }
     }
     androidResources {

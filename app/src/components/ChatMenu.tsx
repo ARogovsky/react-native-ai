@@ -83,7 +83,7 @@ export function ChatMenu() {
           </TouchableOpacity>
         </View>
 
-        <TouchableHighlight underlayColor="transparent" onPress={newChat}>
+        <TouchableHighlight testID="menu-new-chat" underlayColor="transparent" onPress={newChat}>
           <View style={styles.newChatBtn}>
             <Ionicons name="add" size={20} color={theme.tintTextColor} />
             <Text style={styles.newChatText}>{t.newChat}</Text>
@@ -108,7 +108,7 @@ export function ChatMenu() {
                       color={fav ? theme.tintColor : theme.textColor}
                     />
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.rowTitle} onPress={() => selectSession(s.id)}>
+                  <TouchableOpacity testID="menu-session-row" style={styles.rowTitle} onPress={() => selectSession(s.id)}>
                     <Text numberOfLines={1} style={[styles.rowText, active && styles.rowTextActive]}>
                       {s.title || '—'}
                     </Text>

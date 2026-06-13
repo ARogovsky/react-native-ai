@@ -1,0 +1,26 @@
+# Reusable sign-in subflow (Clerk email-code, test mode).
+# Clerk dev instances accept any "+clerk_test" email with the fixed OTP 424242,
+# so this runs with no real inbox. Requires a Clerk DEV publishable key in the build.
+appId: com.elli.app
+---
+- assertVisible:
+    id: "auth-email"
+- tapOn:
+    id: "auth-email"
+- inputText: "elli.e2e+clerk_test@example.com"
+- tapOn:
+    id: "auth-send-code"
+- extendedWaitUntil:
+    visible:
+      id: "auth-code"
+    timeout: 15000
+- tapOn:
+    id: "auth-code"
+- inputText: "424242"
+- tapOn:
+    id: "auth-verify"
+# Signed in -> the chat composer is visible.
+- extendedWaitUntil:
+    visible:
+      id: "chat-input"
+    timeout: 20000
