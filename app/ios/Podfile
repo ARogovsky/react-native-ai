@@ -41,6 +41,13 @@ target 'app' do
 
   config = use_native_modules!(config_command)
 
+  # Clerk pulls ClerkGoogleSignIn -> GoogleSignIn -> AppCheckCore (a Swift pod).
+  # AppCheckCore depends on GoogleUtilities and RecaptchaInterop, which are ObjC
+  # pods that don't define modules. When pods build as static libraries, Swift
+  # cannot import them unless they emit module maps — enable modular headers.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+
   use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
   use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
 
