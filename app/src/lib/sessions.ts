@@ -63,8 +63,10 @@ export async function renameSession(token: string, id: string, title: string): P
 }
 
 export async function deleteSession(token: string, id: string): Promise<void> {
-  const res = await fetch(`${DOMAIN}/api/sessions/${id}`, {
-    method: 'DELETE',
+  // UA pilot: the backend anonymizes in place (no physical delete). We call the
+  // anonymize endpoint; the DELETE verb is a 404 stub and must not be used.
+  const res = await fetch(`${DOMAIN}/api/sessions/${id}/anonymize`, {
+    method: 'POST',
     headers: await authHeaders(token),
   })
   await parse(res)
