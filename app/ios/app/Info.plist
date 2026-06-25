@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.anonymous.app</string>
+          <string>com.elli.app</string>
         </array>
       </dict>
     </array>
