@@ -27,7 +27,7 @@
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
-          <string>com.elli.app</string>
+          <string>com.unkd.elli</string>
         </array>
       </dict>
     </array>

@@ -17,7 +17,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.elli.app"
+      "bundleIdentifier": "com.unkd.elli"
     },
     "android": {
       "adaptiveIcon": {
