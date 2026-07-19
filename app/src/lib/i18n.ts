@@ -41,6 +41,10 @@ interface Strings {
   verify: string
   authHint: string
   genericError: string
+  // Social login
+  continueWithGoogle: string
+  continueWithApple: string
+  orSeparator: string
 }
 
 const STRINGS: Record<Lang, Strings> = {
@@ -67,6 +71,9 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Підтвердити',
     authHint: 'Ми надішлемо код підтвердження на вашу пошту.',
     genericError: 'Сталася помилка. Спробуйте ще раз.',
+    continueWithGoogle: 'Увійти через Google',
+    continueWithApple: 'Увійти через Apple',
+    orSeparator: 'або',
   },
   ru: {
     greeting: 'Привет, я Elli, твой персональный психолог. Чем могу помочь?',
@@ -91,6 +98,9 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Подтвердить',
     authHint: 'Мы отправим код подтверждения на вашу почту.',
     genericError: 'Произошла ошибка. Попробуйте ещё раз.',
+    continueWithGoogle: 'Войти через Google',
+    continueWithApple: 'Войти через Apple',
+    orSeparator: 'или',
   },
   en: {
     greeting: "Hi, I'm Elli, your personal psychologist. How can I help you?",
@@ -115,6 +125,9 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Verify',
     authHint: "We'll email you a verification code.",
     genericError: 'Something went wrong. Please try again.',
+    continueWithGoogle: 'Continue with Google',
+    continueWithApple: 'Continue with Apple',
+    orSeparator: 'or',
   },
 }
 

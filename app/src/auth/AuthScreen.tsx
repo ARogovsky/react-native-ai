@@ -12,6 +12,7 @@ import {
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
 import { ThemeContext } from '../context'
 import { t } from '../lib/i18n'
+import { SocialButtons } from './SocialButtons'
 
 // Avoids depending on a specific error-guard export across Clerk versions.
 function clerkErrorList(e: unknown): Array<{ code?: string; message?: string; longMessage?: string }> {
@@ -128,6 +129,7 @@ export function AuthScreen() {
             />
             <Text style={styles.hint}>{t.authHint}</Text>
             <PrimaryButton testID="auth-send-code" label={t.sendCode} onPress={sendCode} loading={loading} theme={theme} />
+            <SocialButtons theme={theme} onError={setError} />
           </>
         ) : (
           <>

@@ -30,7 +30,9 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "@clerk/expo",
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {
