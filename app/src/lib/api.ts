@@ -20,20 +20,28 @@ export interface StreamChatArgs {
   idempotencyKey?: string
   onEvent: (event: ElliEvent) => void
   onError?: (message: string) => void
-  /** Called once the stream is fully closed (after `done` or a fatal error). */
+  /** Called exactly once when the stream is over: `done`, error, or an early close(). */
   onClose?: () => void
+}
+
+/** Handle for an open chat stream. `close()` is idempotent and triggers `onClose`. */
+export interface ElliStream {
+  close: () => void
 }
 
 /**
  * Opens an SSE stream to the ELLI chat endpoint and forwards parsed events.
- * Returns the EventSource so the caller can close it early if needed.
+ * Returns a handle so the caller can end the stream early (unmount, stall watchdog);
+ * closing that way still runs `onClose`, which callers rely on to stop showing a
+ * spinner. Note that react-native-sse emits NOTHING when the underlying XHR dies with
+ * status 0 (an iOS socket drop), so callers must also time out on inactivity.
  *
  * Contract (services/api/app/api/openai/route.ts):
  *   POST /api/openai  { prompt, sessionId? }
  *   headers: Authorization: Bearer <clerk>, Idempotency-Key?
  *   events: session -> delta* -> resources? -> done | error  (+ ":" keepalive comments)
  */
-export function streamElliChat(args: StreamChatArgs): EventSource {
+export function streamElliChat(args: StreamChatArgs): ElliStream {
   const { prompt, sessionId, token, idempotencyKey, onEvent, onError, onClose } = args
 
   const headers: Record<string, string> = {
@@ -80,5 +88,5 @@ export function streamElliChat(args: StreamChatArgs): EventSource {
     close()
   })
 
-  return es
+  return { close }
 }
