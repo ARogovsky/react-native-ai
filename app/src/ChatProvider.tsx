@@ -183,6 +183,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               acc += event.text
               patchAssistant(acc)
               break
+            case 'reset':
+              // Backend discarded the generated answer (guardrail); replacement
+              // text arrives as fresh deltas right after this.
+              acc = ''
+              patchAssistant('')
+              break
             case 'resources':
               acc = acc ? `${acc}\n\n${event.text}` : event.text
               patchAssistant(acc)

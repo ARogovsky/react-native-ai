@@ -5,6 +5,8 @@ import { DOMAIN } from '../../constants'
 export type ElliEvent =
   | { type: 'session'; sessionId: string; userMessageId?: string }
   | { type: 'delta'; text: string }
+  /** Guardrail replaced the answer: drop whatever was streamed for this turn. */
+  | { type: 'reset' }
   | { type: 'resources'; text: string }
   | { type: 'error'; message: string }
   | { type: 'done'; messageId?: string | null; replay?: boolean }

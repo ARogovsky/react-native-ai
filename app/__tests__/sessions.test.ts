@@ -59,12 +59,14 @@ describe('sessions API', () => {
     expect(JSON.parse(opts.body)).toEqual({ title: 'Renamed' })
   })
 
-  it('deleteSession issues DELETE', async () => {
+  // UA pilot: "delete" anonymizes in place (no physical delete). The DELETE verb on
+  // /api/sessions/:id is a 404 stub, so the client must POST to .../anonymize.
+  it('deleteSession POSTs to the anonymize endpoint', async () => {
     mockFetchOnce({ success: true })
     await deleteSession('tok', 'abc')
     const [url, opts] = (globalThis.fetch as jest.Mock).mock.calls[0]
-    expect(url).toMatch(/\/api\/sessions\/abc$/)
-    expect(opts.method).toBe('DELETE')
+    expect(url).toMatch(/\/api\/sessions\/abc\/anonymize$/)
+    expect(opts.method).toBe('POST')
   })
 
   it('throws on success:false', async () => {
