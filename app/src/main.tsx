@@ -1,82 +1,25 @@
-import { useContext, useRef, useCallback } from 'react';
-import { StyleSheet, Text, View, Button } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Chat, Settings } from './screens'
-import { Header } from './components'
-import FeatherIcon from '@expo/vector-icons/Feather'
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context'
-import { ThemeContext } from './context'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { Chat, Home, Profile } from './screens'
 
-const Tab = createBottomTabNavigator()
+const Stack = createNativeStackNavigator()
 
-function MainComponent() {
-  const insets = useSafeAreaInsets()
-  const { theme } = useContext(ThemeContext)
-  const styles = getStyles({ theme, insets })
-  
-  return (
-    <View style={styles.container}>
-      <Tab.Navigator
-        screenOptions={{
-          tabBarActiveTintColor: theme.tabBarActiveTintColor,
-          tabBarInactiveTintColor: theme.tabBarInactiveTintColor,
-          tabBarStyle: {
-            borderTopWidth: 0,
-            backgroundColor: theme.backgroundColor,
-          },
-        }}
-      >
-        <Tab.Screen
-          name="Chat"
-          component={Chat}
-          options={{
-            header: () => <Header />,
-            tabBarIcon: ({ color, size }) => (
-              <FeatherIcon
-                name="message-circle"
-                color={color}
-                size={size}
-              />
-            ),
-          }}
-        />
-        <Tab.Screen
-          name="Settings"
-          component={Settings}
-          options={{
-            header: () => <Header />,
-            tabBarIcon: ({ color, size }) => (
-              <FeatherIcon
-                name="sliders"
-                color={color}
-                size={size}
-              />
-            ),
-          }}
-        />
-      </Tab.Navigator>
-    </View>
-  );
-}
-
+/**
+ * The handoff has no tab bar: Main screen is the entry point, Chat and Profile are
+ * pushed on top and carry their own top bars.
+ */
 export function Main() {
   return (
     <SafeAreaProvider>
-      <MainComponent />
+      <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Home" component={Home} />
+        <Stack.Screen name="Chat" component={Chat} />
+        <Stack.Screen
+          name="Profile"
+          component={Profile}
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+      </Stack.Navigator>
     </SafeAreaProvider>
   )
 }
-
-const getStyles = ({ theme, insets } : { theme: any, insets: any}) => StyleSheet.create({
-  container: {
-    backgroundColor: theme.backgroundColor,
-    flex: 1,
-    paddingTop: insets.top,
-    paddingBottom: insets.bottom,
-    paddingLeft: insets.left,
-    paddingRight: insets.right,
-  },
-})

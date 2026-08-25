@@ -1,18 +1,19 @@
-import { useState, useContext } from 'react'
+import { useState } from 'react'
 import {
   View,
   Text,
   TextInput,
-  TouchableHighlight,
   StyleSheet,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Pressable,
 } from 'react-native'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
-import { ThemeContext } from '../context'
 import { t } from '../lib/i18n'
 import { SocialButtons } from './SocialButtons'
+import { AuthButton } from './AuthButton'
+import { colors, images, radii, spacing, type } from '../design/tokens'
 
 // Avoids depending on a specific error-guard export across Clerk versions.
 function clerkErrorList(e: unknown): Array<{ code?: string; message?: string; longMessage?: string }> {
@@ -21,19 +22,17 @@ function clerkErrorList(e: unknown): Array<{ code?: string; message?: string; lo
 }
 
 /**
- * Passwordless email-code auth (Clerk custom flow, Approach 1 — works in Expo Go).
- * New users are signed up, returning users signed in; both via a one-time email code.
+ * Login screen — "EN Registered / Login" frame: logo, "Know Thyself", then the
+ * Continue-with buttons. Email keeps the passwordless code flow (Clerk custom flow),
+ * revealed only after the user picks it.
  */
 export function AuthScreen() {
-  const { theme } = useContext(ThemeContext)
-  const styles = getStyles(theme)
-
   const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp()
   const { signIn, setActive: setActiveSignIn, isLoaded: signInLoaded } = useSignIn()
 
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
-  const [pending, setPending] = useState(false)
+  const [step, setStep] = useState<'choose' | 'email' | 'code'>('choose')
   const [mode, setMode] = useState<'signUp' | 'signIn'>('signUp')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -66,7 +65,7 @@ export function AuthScreen() {
           throw e
         }
       }
-      setPending(true)
+      setStep('code')
     } catch (e) {
       setError(extractError(e))
     } finally {
@@ -87,10 +86,7 @@ export function AuthScreen() {
           setError(t.genericError)
         }
       } else {
-        const res = await signIn!.attemptFirstFactor({
-          strategy: 'email_code',
-          code: code.trim(),
-        })
+        const res = await signIn!.attemptFirstFactor({ strategy: 'email_code', code: code.trim() })
         if (res.status === 'complete') {
           await setActiveSignIn!({ session: res.createdSessionId })
         } else {
@@ -107,45 +103,80 @@ export function AuthScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={styles.screen}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>{t.authTitle}</Text>
+      <View style={styles.brand}>
+        <Image source={images.logo} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.tagline}>{t.knowThyself}</Text>
+      </View>
 
-        {!pending ? (
+      <View style={styles.actions}>
+        {step === 'choose' && (
           <>
-            <Text style={styles.label}>{t.emailLabel}</Text>
-            <TextInput
-              style={styles.input}
-              testID="auth-email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder={t.emailPlaceholder}
-              placeholderTextColor={theme.placeholderTextColor}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoCorrect={false}
-              textContentType="emailAddress"
+            <SocialButtons onError={setError} />
+            <AuthButton
+              testID="auth-email-start"
+              icon="mail-outline"
+              label={t.continueWithEmail}
+              onPress={() => setStep('email')}
             />
-            <Text style={styles.hint}>{t.authHint}</Text>
-            <PrimaryButton testID="auth-send-code" label={t.sendCode} onPress={sendCode} loading={loading} theme={theme} />
-            <SocialButtons theme={theme} onError={setError} />
           </>
-        ) : (
+        )}
+
+        {step === 'email' && (
           <>
-            <Text style={styles.label}>{t.codeLabel}</Text>
-            <TextInput
-              style={styles.input}
-              testID="auth-code"
-              value={code}
-              onChangeText={setCode}
-              placeholder={t.codePlaceholder}
-              placeholderTextColor={theme.placeholderTextColor}
-              keyboardType="number-pad"
-              autoComplete="one-time-code"
-              textContentType="oneTimeCode"
+            <View style={styles.inputWrap}>
+              <TextInput
+                testID="auth-email"
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder={t.emailPlaceholder}
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                autoCorrect={false}
+                textContentType="emailAddress"
+                autoFocus
+              />
+            </View>
+            <AuthButton
+              testID="auth-send-code"
+              icon="mail-outline"
+              label={t.sendCode}
+              onPress={sendCode}
+              loading={loading}
+              disabled={loading}
             />
-            <PrimaryButton testID="auth-verify" label={t.verify} onPress={verify} loading={loading} theme={theme} />
+            <BackLink onPress={() => setStep('choose')} />
+          </>
+        )}
+
+        {step === 'code' && (
+          <>
+            <View style={styles.inputWrap}>
+              <TextInput
+                testID="auth-code"
+                style={styles.input}
+                value={code}
+                onChangeText={setCode}
+                placeholder={t.codePlaceholder}
+                placeholderTextColor={colors.muted}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                textContentType="oneTimeCode"
+                autoFocus
+              />
+            </View>
+            <AuthButton
+              testID="auth-verify"
+              icon="checkmark"
+              label={t.verify}
+              onPress={verify}
+              loading={loading}
+              disabled={loading}
+            />
+            <BackLink onPress={() => setStep('email')} />
           </>
         )}
 
@@ -155,35 +186,11 @@ export function AuthScreen() {
   )
 }
 
-function PrimaryButton({
-  label,
-  onPress,
-  loading,
-  theme,
-  testID,
-}: {
-  label: string
-  onPress: () => void
-  loading: boolean
-  theme: any
-  testID?: string
-}) {
+function BackLink({ onPress }: { onPress: () => void }) {
   return (
-    <TouchableHighlight
-      testID={testID}
-      underlayColor="transparent"
-      onPress={onPress}
-      disabled={loading}
-      style={{ marginTop: 16 }}
-    >
-      <View style={[btn.button, { backgroundColor: theme.tintColor, opacity: loading ? 0.6 : 1 }]}>
-        {loading ? (
-          <ActivityIndicator color={theme.tintTextColor} />
-        ) : (
-          <Text style={[btn.text, { color: theme.tintTextColor }]}>{label}</Text>
-        )}
-      </View>
-    </TouchableHighlight>
+    <Pressable accessibilityRole="button" onPress={onPress} style={styles.backLink}>
+      <Text style={styles.backLinkText}>{t.back}</Text>
+    </Pressable>
   )
 }
 
@@ -192,47 +199,29 @@ function extractError(e: unknown): string {
   return list[0]?.longMessage || list[0]?.message || t.genericError
 }
 
-const btn = StyleSheet.create({
-  button: {
-    paddingVertical: 14,
-    borderRadius: 99,
-    alignItems: 'center',
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    rowGap: 101,
+  },
+  brand: { alignItems: 'center', rowGap: spacing.lg },
+  logo: { width: 242, height: 65 },
+  tagline: { ...type.tagline, color: colors.brand, textAlign: 'center' },
+  actions: { rowGap: spacing.lg },
+  inputWrap: {
+    height: 50,
+    borderRadius: radii.pill,
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.muted,
+    paddingHorizontal: 22,
     justifyContent: 'center',
   },
-  text: { fontSize: 16, fontWeight: '600' },
+  input: { ...type.body, color: colors.text, padding: 0 },
+  backLink: { alignSelf: 'center', paddingVertical: spacing.md },
+  backLinkText: { ...type.bodySmall, color: colors.mutedStrong },
+  error: { ...type.bodySmall, color: colors.danger, textAlign: 'center' },
 })
-
-const getStyles = (theme: any) =>
-  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.backgroundColor,
-      justifyContent: 'center',
-      paddingHorizontal: 24,
-    },
-    card: { width: '100%' },
-    title: {
-      fontSize: 24,
-      fontFamily: theme.boldFont,
-      color: theme.textColor,
-      marginBottom: 24,
-      textAlign: 'center',
-    },
-    label: {
-      fontSize: 14,
-      color: theme.textColor,
-      marginBottom: 8,
-      fontFamily: theme.mediumFont,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: theme.borderColor,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-      color: theme.textColor,
-      fontSize: 16,
-    },
-    hint: { color: theme.textColor, opacity: 0.6, fontSize: 13, marginTop: 8 },
-    error: { color: '#c0392b', marginTop: 14, textAlign: 'center' },
-  })

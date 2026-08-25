@@ -45,6 +45,30 @@ interface Strings {
   continueWithGoogle: string
   continueWithApple: string
   orSeparator: string
+  // Design handoff copy (EN/UA strings taken verbatim from the Figma frames)
+  back: string
+  thinking: string
+  continueConversation: string
+  topicLabel: string
+  profile: string
+  history: string
+  language: string
+  opportunities: string
+  leaveFeedback: string
+  feedbackSubtitle: string
+  logOut: string
+  knowThyself: string
+  continueWithEmail: string
+  deleteTitle: string
+  deleteHint: string
+  confirmDelete: string
+  declineDelete: string
+  renameTitle: string
+  renamePlaceholder: string
+  ok: string
+  somethingWentWrong: string
+  goHome: string
+  noInternet: string
 }
 
 const STRINGS: Record<Lang, Strings> = {
@@ -71,9 +95,32 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Підтвердити',
     authHint: 'Ми надішлемо код підтвердження на вашу пошту.',
     genericError: 'Сталася помилка. Спробуйте ще раз.',
-    continueWithGoogle: 'Увійти через Google',
+    continueWithGoogle: 'Continue with Google',
     continueWithApple: 'Увійти через Apple',
     orSeparator: 'або',
+    back: 'Назад',
+    thinking: 'Elli думає ...',
+    continueConversation: 'ПРОДОВЖИТИ',
+    topicLabel: 'Тема:',
+    profile: 'Профіль',
+    history: 'Історія',
+    language: 'Мова',
+    opportunities: 'Можливості',
+    leaveFeedback: 'Залишити відгук',
+    feedbackSubtitle: 'Щоб покращити нашу якість',
+    logOut: 'Вийти',
+    knowThyself: 'Пізнай Себе',
+    continueWithEmail: 'Continue with Email',
+    deleteTitle: 'Ви впевнені, що хочете видалити?',
+    deleteHint: 'Якщо ви видалите чат, ELLI втратить контекст',
+    confirmDelete: 'Так, видалити чат',
+    declineDelete: 'Ні',
+    renameTitle: 'Перейменувати розмову',
+    renamePlaceholder: 'Назва розмови',
+    ok: 'Ок',
+    somethingWentWrong: 'Щось пішло не так',
+    goHome: 'Головна',
+    noInternet: 'Відсутнє підключення до інтернету',
   },
   ru: {
     greeting: 'Привет, я Elli, твой персональный психолог. Чем могу помочь?',
@@ -98,9 +145,32 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Подтвердить',
     authHint: 'Мы отправим код подтверждения на вашу почту.',
     genericError: 'Произошла ошибка. Попробуйте ещё раз.',
-    continueWithGoogle: 'Войти через Google',
+    continueWithGoogle: 'Continue with Google',
     continueWithApple: 'Войти через Apple',
     orSeparator: 'или',
+    back: 'Назад',
+    thinking: 'Elli думает ...',
+    continueConversation: 'ПРОДОЛЖИТЬ',
+    topicLabel: 'Тема:',
+    profile: 'Профиль',
+    history: 'История',
+    language: 'Язык',
+    opportunities: 'Возможности',
+    leaveFeedback: 'Оставить отзыв',
+    feedbackSubtitle: 'Чтобы улучшить наше качество',
+    logOut: 'Выйти',
+    knowThyself: 'Познай Себя',
+    continueWithEmail: 'Continue with Email',
+    deleteTitle: 'Вы уверены, что хотите удалить?',
+    deleteHint: 'Если вы удалите чат, ELLI потеряет контекст',
+    confirmDelete: 'Да, удалить чат',
+    declineDelete: 'Нет',
+    renameTitle: 'Переименовать разговор',
+    renamePlaceholder: 'Название разговора',
+    ok: 'Ок',
+    somethingWentWrong: 'Что-то пошло не так',
+    goHome: 'Главная',
+    noInternet: 'Нет подключения к интернету',
   },
   en: {
     greeting: "Hi, I'm Elli, your personal psychologist. How can I help you?",
@@ -128,6 +198,29 @@ const STRINGS: Record<Lang, Strings> = {
     continueWithGoogle: 'Continue with Google',
     continueWithApple: 'Continue with Apple',
     orSeparator: 'or',
+    back: 'Back',
+    thinking: 'Elli is thinking ...',
+    continueConversation: 'CONTINUE',
+    topicLabel: 'Topic:',
+    profile: 'Profile',
+    history: 'History',
+    language: 'Language',
+    opportunities: 'Opportunities',
+    leaveFeedback: 'Leave Feedback',
+    feedbackSubtitle: 'To improve our quality',
+    logOut: 'Log out',
+    knowThyself: 'Know Thyself',
+    continueWithEmail: 'Continue with Email',
+    deleteTitle: 'Are you sure you want to delete?',
+    deleteHint: 'If you delete the chat, ELLI will lose the context',
+    confirmDelete: 'Yes, delete chat',
+    declineDelete: 'No',
+    renameTitle: 'Rename Conversation',
+    renamePlaceholder: 'Conversation name',
+    ok: 'Ok',
+    somethingWentWrong: 'Something went wrong',
+    goHome: 'home',
+    noInternet: 'No internet connection',
   },
 }
 

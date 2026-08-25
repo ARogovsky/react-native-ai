@@ -1,2 +1,4 @@
 export { Icon } from './Icon'
-export { Header } from './Header'
+export { ChatMenu } from './ChatMenu'
+export { LanguageModal } from './LanguageModal'
+export { DeleteChatModal, RenameChatModal } from './ConfirmModals'

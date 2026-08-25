@@ -16,6 +16,8 @@ const colors = {
   pinkMuted: 'rgba(233, 30, 140, .4)'
 }
 
+import { colors as elliColors, fonts as elliFonts } from './design/tokens'
+
 const fonts = {
   ultraLightFont: 'Geist-Ultralight',
   thinFont: 'Geist-Thin',
@@ -127,6 +129,36 @@ const pink = {
   borderColor: 'rgba(233, 30, 140, .2)',
 }
 
+/**
+ * The shipped ELLI look, from the Figma handoff. Values live in src/design/tokens.ts;
+ * this maps them onto the theme keys the existing components already consume, so the
+ * design applies without every component learning about tokens.
+ */
+const elli = {
+  name: 'ELLI',
+  label: 'elli',
+  regularFont: elliFonts.regular,
+  lightFont: elliFonts.light,
+  mediumFont: elliFonts.medium,
+  semiBoldFont: elliFonts.semiBold,
+  boldFont: elliFonts.semiBold,
+  blackFont: elliFonts.semiBold,
+  thinFont: elliFonts.light,
+  ultraLightFont: elliFonts.light,
+  ultraBlackFont: elliFonts.semiBold,
+  textColor: elliColors.text,
+  secondaryTextColor: elliColors.textStrong,
+  mutedForegroundColor: elliColors.muted,
+  backgroundColor: elliColors.background,
+  placeholderTextColor: elliColors.muted,
+  secondaryBackgroundColor: elliColors.bubbleAgent,
+  borderColor: elliColors.divider,
+  tintColor: elliColors.bubbleAgent,
+  tintTextColor: elliColors.textStrong,
+  tabBarActiveTintColor: elliColors.text,
+  tabBarInactiveTintColor: elliColors.muted,
+}
+
 export {
-  lightTheme, darkTheme, hackerNews, miami, vercel, cyberpunk, matrix, pink
+  elli, lightTheme, darkTheme, hackerNews, miami, vercel, cyberpunk, matrix, pink
 }

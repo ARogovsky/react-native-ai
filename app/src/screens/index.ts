@@ -1,2 +1,3 @@
 export { Chat } from './chat'
-export { Settings } from './settings'
+export { Home } from './home'
+export { Profile } from './profile'

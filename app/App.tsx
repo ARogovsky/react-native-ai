@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react'
 import { NavigationContainer } from '@react-navigation/native'
 import { Main } from './src/main'
 import { useFonts } from 'expo-font'
+// Import per weight, not from the package root: the root re-exports every weight and
+// italic, which pulled ~6 MB of unused TTFs into the bundle.
+import { Inter_300Light } from '@expo-google-fonts/inter/300Light'
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular'
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium'
+import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold'
 import { ThemeContext } from './src/context'
 import * as themes from './src/theme'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -18,8 +24,14 @@ import { ChatMenu } from './src/components/ChatMenu'
 LogBox.ignoreLogs(['No native splash screen registered'])
 
 export default function App() {
-  const [theme, setTheme] = useState<string>('light')
+  // The ELLI design is the product look; the other themes stay available for debugging.
+  const [theme, setTheme] = useState<string>('elli')
   const [fontsLoaded] = useFonts({
+    // Inter is the typeface the handoff uses for every text style.
+    Inter_300Light,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
     'Geist-Regular': require('./assets/fonts/Geist-Regular.otf'),
     'Geist-Light': require('./assets/fonts/Geist-Light.otf'),
     'Geist-Bold': require('./assets/fonts/Geist-Bold.otf'),

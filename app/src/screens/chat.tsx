@@ -3,26 +3,29 @@ import {
   Text,
   KeyboardAvoidingView,
   StyleSheet,
-  TouchableHighlight,
   TextInput,
   ScrollView,
   Keyboard,
   Platform,
+  Pressable,
 } from 'react-native'
 import 'react-native-get-random-values'
-import { useContext, useState, useRef, useEffect } from 'react'
-import { ThemeContext } from '../context'
-import { useChat, ChatMsg } from '../ChatProvider'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigation } from '@react-navigation/native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
+import Markdown from '@ronradtke/react-native-markdown-display'
 import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
-import Markdown from '@ronradtke/react-native-markdown-display'
+import { useChat, ChatMsg } from '../ChatProvider'
 import { t } from '../lib/i18n'
+import { colors, layout, radii, spacing, type } from '../design/tokens'
 
+/** Chat screen — "EN Chat" frame of the handoff. */
 export function Chat() {
-  const { theme } = useContext(ThemeContext)
-  const { messages, send, loading, newChat } = useChat()
-  const styles = getStyles(theme)
+  const { messages, send, loading, openMenu } = useChat()
+  const navigation = useNavigation<any>()
+  const insets = useSafeAreaInsets()
   const { showActionSheetWithOptions } = useActionSheet()
 
   const [input, setInput] = useState('')
@@ -41,169 +44,206 @@ export function Chat() {
     await send(prompt)
   }
 
-  async function copyToClipboard(text: string) {
-    await Clipboard.setStringAsync(text)
-  }
-
   function showMessageActions(text: string) {
     showActionSheetWithOptions(
       { options: [t.newChat, 'Copy', 'Cancel'], cancelButtonIndex: 2 },
       (selected) => {
-        if (selected === 0) newChat()
-        if (selected === 1) copyToClipboard(text)
+        if (selected === 1) Clipboard.setStringAsync(text)
       }
     )
   }
 
-  const hasMessages = messages.length > 0
+  // The last assistant message is empty while the model has not produced a token yet:
+  // the design shows a muted "Elli is thinking ..." line in its place.
+  const last = messages[messages.length - 1]
+  const awaitingFirstToken = loading && last?.role === 'assistant' && !last.content
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-      keyboardVerticalOffset={110}
-    >
+    <View style={styles.screen}>
+      <View style={[styles.topBar, { paddingTop: Math.max(insets.top, layout.topBarPaddingTop) }]}>
+        <RoundButton
+          icon="chevron-back"
+          accessibilityLabel={t.back}
+          onPress={() => navigation.goBack()}
+        />
+        <RoundButton icon="ellipsis-horizontal" accessibilityLabel={t.yourChats} onPress={openMenu} testID="header-menu" />
+      </View>
+
       <ScrollView
-        keyboardShouldPersistTaps="handled"
         ref={scrollViewRef}
-        contentContainerStyle={!hasMessages && styles.scrollContentContainer}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        keyboardDismissMode="on-drag"
       >
-        {!hasMessages && (
-          <View style={styles.greetingWrapper}>
-            <View style={styles.assistantBubble}>
-              <Markdown style={styles.markdownStyle as any}>{t.greeting}</Markdown>
-            </View>
-          </View>
+        {messages.map((message, index) =>
+          awaitingFirstToken && index === messages.length - 1 ? (
+            <Text key="thinking" style={styles.thinking}>
+              {t.thinking}
+            </Text>
+          ) : (
+            <Bubble key={index} message={message} onLongPress={showMessageActions} />
+          )
         )}
-        {messages.map((m, i) => (
-          <MessageRow
-            key={i}
-            msg={m}
-            theme={theme}
-            styles={styles}
-            onLongPress={() => showMessageActions(m.content)}
-          />
-        ))}
-        {loading && <Text style={styles.typing}>{t.typing}</Text>}
       </ScrollView>
 
-      <View style={styles.chatInputContainer}>
-        <TextInput
-          style={styles.input}
-          testID="chat-input"
-          onChangeText={setInput}
-          placeholder={t.inputPlaceholder}
-          placeholderTextColor={theme.placeholderTextColor}
-          value={input}
-          multiline
-        />
-        <TouchableHighlight testID="chat-send" underlayColor={'transparent'} activeOpacity={0.65} onPress={onSend}>
-          <View style={styles.chatButton}>
-            <Ionicons name="arrow-up-outline" size={20} color={theme.tintTextColor} />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, layout.bottomBarPaddingBottom) }]}>
+          <View style={styles.inputPill}>
+            <TextInput
+              testID="chat-input"
+              style={styles.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder={t.inputPlaceholder}
+              placeholderTextColor={colors.muted}
+              multiline
+              onSubmitEditing={onSend}
+            />
+            <Pressable
+              testID="chat-send"
+              accessibilityLabel={t.send}
+              accessibilityRole="button"
+              onPress={onSend}
+              style={styles.sendButton}
+            >
+              <Ionicons name="leaf" size={22} color={colors.brand} />
+            </Pressable>
           </View>
-        </TouchableHighlight>
-      </View>
-    </KeyboardAvoidingView>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   )
 }
 
-function MessageRow({
-  msg,
-  theme,
-  styles,
+function RoundButton({
+  icon,
+  onPress,
+  accessibilityLabel,
+  testID,
+}: {
+  icon: keyof typeof Ionicons.glyphMap
+  onPress: () => void
+  accessibilityLabel: string
+  testID?: string
+}) {
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={styles.roundButton}
+    >
+      <Ionicons name={icon} size={22} color={colors.text} />
+    </Pressable>
+  )
+}
+
+function Bubble({
+  message,
   onLongPress,
 }: {
-  msg: ChatMsg
-  theme: any
-  styles: any
-  onLongPress: () => void
+  message: ChatMsg
+  onLongPress: (text: string) => void
 }) {
-  if (msg.role === 'user') {
-    return (
-      <View style={styles.promptTextContainer}>
-        <View style={styles.promptTextWrapper}>
-          <Text style={styles.promptText}>{msg.content}</Text>
-        </View>
-      </View>
-    )
-  }
-  if (msg.error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{t.genericError}</Text>
-      </View>
-    )
-  }
+  const isUser = message.role === 'user'
   return (
-    <TouchableHighlight underlayColor="transparent" onLongPress={onLongPress}>
-      <View style={styles.assistantBubble}>
-        <Markdown style={styles.markdownStyle as any}>{msg.content}</Markdown>
-      </View>
-    </TouchableHighlight>
+    <View style={[styles.row, isUser ? styles.rowUser : styles.rowAgent]}>
+      <Pressable
+        onLongPress={() => onLongPress(message.content)}
+        style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAgent]}
+      >
+        {message.error ? (
+          <Text style={[styles.messageText, styles.errorText]}>{t.genericError}</Text>
+        ) : (
+          <Markdown
+            style={{
+              body: { ...type.message, color: colors.text, textAlign: isUser ? 'right' : 'left' },
+              paragraph: { marginTop: 0, marginBottom: 0 },
+              strong: { fontFamily: type.brandName.fontFamily },
+            }}
+          >
+            {message.content}
+          </Markdown>
+        )}
+      </Pressable>
+    </View>
   )
 }
 
-const getStyles = (theme: any) =>
-  StyleSheet.create({
-    container: { backgroundColor: theme.backgroundColor, flex: 1 },
-    scrollContentContainer: { flex: 1, justifyContent: 'center' },
-    greetingWrapper: { paddingHorizontal: 10 },
-    assistantBubble: {
-      borderWidth: 1,
-      marginRight: 25,
-      borderColor: theme.borderColor,
-      paddingHorizontal: 15,
-      paddingVertical: 6,
-      margin: 10,
-      borderRadius: 13,
-    },
-    promptTextContainer: { alignItems: 'flex-end', marginRight: 15, marginLeft: 24, marginTop: 10 },
-    promptTextWrapper: { borderRadius: 8, borderTopRightRadius: 0, backgroundColor: theme.tintColor },
-    promptText: {
-      color: theme.tintTextColor,
-      fontFamily: theme.regularFont,
-      paddingVertical: 6,
-      paddingHorizontal: 10,
-      fontSize: 16,
-    },
-    typing: { marginTop: 10, marginLeft: 14, color: theme.textColor, opacity: 0.6, fontStyle: 'italic' },
-    errorContainer: {
-      marginHorizontal: 10,
-      marginTop: 8,
-      padding: 10,
-      borderRadius: 8,
-      backgroundColor: 'rgba(192,57,43,0.12)',
-    },
-    errorText: { color: '#c0392b' },
-    chatButton: { marginRight: 14, padding: 5, borderRadius: 99, backgroundColor: theme.tintColor },
-    chatInputContainer: {
-      paddingTop: 5,
-      borderColor: theme.borderColor,
-      width: '100%',
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingBottom: 5,
-    },
-    input: {
-      flex: 1,
-      borderWidth: 1,
-      borderRadius: 24,
-      color: theme.textColor,
-      marginHorizontal: 10,
-      paddingVertical: 10,
-      paddingHorizontal: 21,
-      maxHeight: 120,
-      borderColor: theme.borderColor,
-      fontFamily: theme.semiBoldFont,
-    },
-    markdownStyle: {
-      body: { color: theme.textColor, fontFamily: theme.regularFont },
-      paragraph: { color: theme.textColor, fontSize: 16, fontFamily: theme.regularFont },
-      link: { color: theme.tintColor },
-      list_item: { marginTop: 7, color: theme.textColor, fontFamily: theme.regularFont, fontSize: 16 },
-      bullet_list_icon: { color: theme.textColor },
-      ordered_list_icon: { color: theme.textColor },
-      code_inline: { color: theme.textColor, backgroundColor: theme.secondaryBackgroundColor },
-      fence: { color: theme.textColor, backgroundColor: theme.secondaryBackgroundColor, borderColor: theme.borderColor },
-    } as any,
-  })
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: colors.background },
+  topBar: {
+    height: layout.topBarHeight,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    backgroundColor: colors.barOverlay,
+  },
+  roundButton: {
+    width: layout.topButton,
+    height: layout.topButton,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  list: { flex: 1 },
+  listContent: { paddingVertical: spacing.md, rowGap: spacing.lg },
+  row: { paddingVertical: spacing.md },
+  rowAgent: { paddingLeft: spacing.md, paddingRight: layout.bubbleOppositeInset },
+  rowUser: { paddingRight: spacing.md, paddingLeft: layout.bubbleOppositeInset, alignItems: 'flex-end' },
+  bubble: {
+    maxWidth: layout.bubbleMaxWidth,
+    borderRadius: radii.bubble,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs,
+    justifyContent: 'center',
+  },
+  bubbleAgent: { backgroundColor: colors.bubbleAgent },
+  // The design leaves user messages unfilled: right-aligned text on the page background.
+  bubbleUser: { backgroundColor: 'transparent' },
+  messageText: { ...type.message, color: colors.text },
+  errorText: { color: colors.danger },
+  thinking: {
+    ...type.message,
+    color: colors.muted,
+    paddingHorizontal: spacing.lg + spacing.md,
+    paddingVertical: spacing.md,
+  },
+  bottomBar: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    backgroundColor: colors.barOverlay,
+  },
+  inputPill: {
+    minHeight: layout.inputHeight,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.surface,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    columnGap: spacing.lg,
+  },
+  input: {
+    flex: 1,
+    ...type.message,
+    color: colors.text,
+    maxHeight: 120,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  sendButton: {
+    width: layout.sendButton,
+    height: layout.sendButton,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.bubbleAgent,
+  },
+})
