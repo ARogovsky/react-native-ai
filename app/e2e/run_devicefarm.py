@@ -41,7 +41,11 @@ def aws(args):
 
 
 print("platform=%s pool=%s" % (PLATFORM, POOL_ARN.rsplit("/", 1)[-1]))
-urllib.request.urlretrieve(APP_URL, APP_FILE)
+# The EAS artifact CDN answers 403 Forbidden to urllib's default user agent (that killed
+# the first e2e build 23 seconds in); curl follows the redirects and fetches the file.
+fetch = subprocess.run(["curl", "-sSL", "-o", APP_FILE, APP_URL], capture_output=True, text=True)
+if fetch.returncode != 0 or not os.path.exists(APP_FILE):
+    raise SystemExit("artifact download failed: " + fetch.stderr.strip()[:300])
 print("app bytes:", os.path.getsize(APP_FILE))
 
 with zipfile.ZipFile(ZIP_FILE, "w", zipfile.ZIP_DEFLATED) as z:
