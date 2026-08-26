@@ -1,0 +1,32 @@
+version: 0.1
+
+# Run on Device Farm's newer test hosts (Amazon Linux 2 for Android; iOS always runs on
+# the macOS hosts). Appium and Node are pre-installed by Device Farm.
+android_test_host: amazon_linux_2
+
+phases:
+  install:
+    commands:
+      - export APPIUM_VERSION=2
+      - devicefarm-cli use node 20
+      - node --version
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      - ls -la
+
+  pre_test:
+    commands:
+      # Start the Appium server Device Farm ships, on the port the test connects to.
+      - devicefarm-cli start appium $APPIUM_VERSION
+      - echo "appium host $DEVICEFARM_APPIUM_HOST port $DEVICEFARM_APPIUM_PORT"
+
+  test:
+    commands:
+      - cd $DEVICEFARM_TEST_PACKAGE_PATH
+      - npx mocha login.test.js --reporter spec
+
+  post_test:
+    commands:
+      - echo "test phase finished"
+
+artifacts:
+  - $DEVICEFARM_LOG_DIR

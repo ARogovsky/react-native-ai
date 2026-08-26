@@ -1,0 +1,13 @@
+{
+  "name": "elli-e2e-devicefarm",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Appium NodeJS login check executed on AWS Device Farm real devices.",
+  "scripts": {
+    "test": "mocha login.test.js"
+  },
+  "dependencies": {
+    "mocha": "10.8.2",
+    "webdriverio": "9.12.0"
+  }
+}

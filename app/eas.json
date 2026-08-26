@@ -32,6 +32,16 @@
         "EXPO_PUBLIC_ENV": "PRODUCTION",
         "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com"
       }
+    },
+    "e2e": {
+      "comment": "Device Farm login check: store-signed (Device Farm re-signs the IPA) with a DEV Clerk key so +clerk_test/424242 works.",
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": false },
+      "env": {
+        "EXPO_PUBLIC_ENV": "PRODUCTION",
+        "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bmVhdC1iYWJvb24tNDIuY2xlcmsuYWNjb3VudHMuZGV2JA"
+      }
     }
   },
   "submit": {
