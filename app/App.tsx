@@ -1,7 +1,5 @@
 import 'react-native-gesture-handler'
 import { useState, useEffect } from 'react'
-import { NavigationContainer } from '@react-navigation/native'
-import { Main } from './src/main'
 import { useFonts } from 'expo-font'
 // Import per weight, not from the package root: the root re-exports every weight and
 // italic, which pulled ~6 MB of unused TTFs into the bundle.
@@ -12,14 +10,12 @@ import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold'
 import { ThemeContext } from './src/context'
 import * as themes from './src/theme'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { ActionSheetProvider } from '@expo/react-native-action-sheet'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { LogBox, View, ActivityIndicator, Text } from 'react-native'
 import { ClerkProvider, ClerkLoaded, ClerkLoading, Show } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { AuthScreen } from './src/auth/AuthScreen'
-import { ChatProvider } from './src/ChatProvider'
-import { ChatMenu } from './src/components/ChatMenu'
+import { SignedInApp } from './src/SignedInApp'
 
 LogBox.ignoreLogs(['No native splash screen registered'])
 
@@ -79,14 +75,7 @@ export default function App() {
               <AuthScreen />
             </Show>
             <Show when="signed-in">
-              <ChatProvider>
-                <ActionSheetProvider>
-                  <NavigationContainer>
-                    <Main />
-                  </NavigationContainer>
-                </ActionSheetProvider>
-                <ChatMenu />
-              </ChatProvider>
+              <SignedInApp />
             </Show>
           </ClerkLoaded>
         </ThemeContext.Provider>
