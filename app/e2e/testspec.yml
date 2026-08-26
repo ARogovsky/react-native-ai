@@ -1,23 +1,37 @@
 version: 0.1
 
-# Run on Device Farm's newer test hosts (Amazon Linux 2 for Android; iOS always runs on
-# the macOS hosts). Appium and Node are pre-installed by Device Farm.
+# Pin the modern test hosts. On the legacy iOS host there is no devicefarm-cli, node is
+# 14 (webdriverio needs >= 18) and Appium is never started, so the run dies before the app
+# is touched. macos_tahoe provides devicefarm-cli, node 20 and Appium 3.
 android_test_host: amazon_linux_2
+ios_test_host: macos_tahoe
 
 phases:
   install:
     commands:
-      - export APPIUM_VERSION=2
       - devicefarm-cli use node 20
       - node --version
+      - devicefarm-cli use appium 3
+      - appium --version
+      # The zip ships only package.json + the test, so deps come from the registry here.
       - cd $DEVICEFARM_TEST_PACKAGE_PATH
-      - ls -la
+      - npm install --no-audit --no-fund --loglevel error
 
   pre_test:
     commands:
-      # Start the Appium server Device Farm ships, on the port the test connects to.
-      - devicefarm-cli start appium $APPIUM_VERSION
-      - echo "appium host $DEVICEFARM_APPIUM_HOST port $DEVICEFARM_APPIUM_PORT"
+      # `devicefarm-cli start appium` is not a valid subcommand on this host (it printed
+      # usage and Appium never came up -> ECONNREFUSED), so start the server directly.
+      # Base path must match the test's /wd/hub; Appium 3 defaults to /.
+      - appium --base-path /wd/hub --port 4723 --log-timestamp --log-no-colors >> $DEVICEFARM_LOG_DIR/appium.log 2>&1 &
+      - |
+        for i in $(seq 1 45); do
+          if curl -sf http://127.0.0.1:4723/wd/hub/status > /dev/null; then
+            echo "appium is up after ${i} attempt(s)"
+            break
+          fi
+          sleep 2
+        done
+      - curl -sf http://127.0.0.1:4723/wd/hub/status || echo "appium still down"
 
   test:
     commands:

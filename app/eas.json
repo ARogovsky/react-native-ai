@@ -34,7 +34,6 @@
       }
     },
     "e2e": {
-      "comment": "Device Farm login check: store-signed (Device Farm re-signs the IPA) with a DEV Clerk key so +clerk_test/424242 works.",
       "android": { "buildType": "apk" },
       "ios": { "simulator": false },
       "env": {
