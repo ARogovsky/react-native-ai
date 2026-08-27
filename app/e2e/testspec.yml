@@ -19,6 +19,21 @@ phases:
 
   pre_test:
     commands:
+      # Hand Appium the WebDriverAgent that Device Farm prebuilds. Without it the driver
+      # runs xcodebuild itself and the session dies with "xcodebuild failed with code 65".
+      # New hosts expose DEVICEFARM_APPIUM_WDA_DERIVED_DATA_PATH_V<major>, legacy hosts
+      # DEVICEFARM_WDA_DERIVED_DATA_PATH; pick whichever exists and log the choice.
+      - |
+        WDA_VAR=$(env | grep -oE '^DEVICEFARM_APPIUM_WDA_DERIVED_DATA_PATH_V[0-9]+' | sort -r | head -1)
+        if [ -n "$WDA_VAR" ]; then
+          WDA_PATH_VALUE=$(eval echo "\$$WDA_VAR")
+          echo "WDA from $WDA_VAR"
+        else
+          WDA_PATH_VALUE="$DEVICEFARM_WDA_DERIVED_DATA_PATH"
+          echo "WDA from legacy DEVICEFARM_WDA_DERIVED_DATA_PATH"
+        fi
+        echo "WDA_DERIVED_DATA_PATH=$WDA_PATH_VALUE"
+        echo "$WDA_PATH_VALUE" > $DEVICEFARM_TEST_PACKAGE_PATH/.wda_path
       # `devicefarm-cli start appium` is not a valid subcommand on this host (it printed
       # usage and Appium never came up -> ECONNREFUSED), so start the server directly.
       # Base path must match the test's /wd/hub; Appium 3 defaults to /.

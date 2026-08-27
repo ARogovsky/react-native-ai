@@ -10,7 +10,18 @@
  * Appium is provided by Device Farm; the driver connects to the already-installed app.
  */
 
+const fs = require('fs');
 const { remote } = require('webdriverio');
+
+// pre_test resolves the prebuilt WebDriverAgent path and drops it here.
+function readWdaPath() {
+  try {
+    return fs.readFileSync('.wda_path', 'utf8').trim() || null;
+  } catch (e) {
+    return process.env.DEVICEFARM_WDA_DERIVED_DATA_PATH || null;
+  }
+}
+const WDA_PATH = readWdaPath();
 
 const PLATFORM = (process.env.DEVICEFARM_DEVICE_PLATFORM_NAME || 'iOS').toLowerCase();
 const IS_IOS = PLATFORM.includes('ios');
@@ -56,7 +67,14 @@ describe('ELLI login on a real device', function () {
         'appium:platformVersion': process.env.DEVICEFARM_DEVICE_OS_VERSION,
         'appium:newCommandTimeout': 120,
         ...(IS_IOS
-          ? { 'appium:bundleId': process.env.APP_BUNDLE_ID || 'com.unkd.elli' }
+          ? {
+              'appium:bundleId': process.env.APP_BUNDLE_ID || 'com.unkd.elli',
+              // Device Farm prebuilds WebDriverAgent; letting the driver build it fails
+              // with "xcodebuild failed with code 65".
+              ...(WDA_PATH
+                ? { 'appium:usePrebuiltWDA': true, 'appium:derivedDataPath': WDA_PATH }
+                : {}),
+            }
           : { 'appium:appPackage': process.env.APP_PACKAGE || 'com.elli.app' }),
       },
     });
