@@ -84,6 +84,28 @@ describe('ELLI login on a real device', function () {
     if (driver) await driver.deleteSession();
   });
 
+  // On failure, capture what is actually on screen: the page source goes to the build log
+  // and the screenshot to the run artifacts. A bare "element not displayed" does not say
+  // whether Clerk refused the code, the app crashed, or the screen simply differs.
+  afterEach(async function () {
+    if (this.currentTest && this.currentTest.state !== 'failed') return
+    if (!driver) return
+    try {
+      const source = await driver.getPageSource()
+      console.log('----- page source at failure -----')
+      console.log(String(source).slice(0, 8000))
+    } catch (e) {
+      console.log('could not read page source:', e && e.message)
+    }
+    try {
+      const dir = process.env.DEVICEFARM_LOG_DIR || '.'
+      await driver.saveScreenshot(dir + '/failure.png')
+      console.log('screenshot saved to', dir + '/failure.png')
+    } catch (e) {
+      console.log('could not save screenshot:', e && e.message)
+    }
+  })
+
   it('signs in and reaches the signed-in screen', async () => {
     // Login screen is up.
     const start = await driver.$(selector('auth-email-start'));

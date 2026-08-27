@@ -1,0 +1,32 @@
+# Same flow as login-ios.yml, for the Android APK build.
+# Maestro pins one appId per flow and the Android package differs from the iOS bundle id.
+appId: com.elli.app
+---
+- launchApp:
+    clearState: true
+
+- assertVisible:
+    id: 'auth-email-start'
+- tapOn:
+    id: 'auth-email-start'
+
+- tapOn:
+    id: 'auth-email'
+- inputText: 'elli.e2e+clerk_test@example.com'
+- tapOn:
+    id: 'auth-send-code'
+
+- extendedWaitUntil:
+    visible:
+      id: 'auth-code'
+    timeout: 20000
+- tapOn:
+    id: 'auth-code'
+- inputText: '424242'
+- tapOn:
+    id: 'auth-verify'
+
+- extendedWaitUntil:
+    visible:
+      id: 'home-continue'
+    timeout: 30000

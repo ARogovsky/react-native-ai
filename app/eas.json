@@ -41,6 +41,16 @@
         "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com",
         "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bmVhdC1iYWJvb24tNDIuY2xlcmsuYWNjb3VudHMuZGV2JA"
       }
+    },
+    "e2e-sim": {
+      "withoutCredentials": true,
+      "android": { "buildType": "apk" },
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_ENV": "PRODUCTION",
+        "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com",
+        "EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY": "pk_test_bmVhdC1iYWJvb24tNDIuY2xlcmsuYWNjb3VudHMuZGV2JA"
+      }
     }
   },
   "submit": {

@@ -1,0 +1,20 @@
+name: e2e-login-android
+
+# Android counterpart of e2e-login-ios: APK built by EAS, login flow run by Maestro.
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  build_android_e2e:
+    type: build
+    params:
+      platform: android
+      profile: e2e-sim
+
+  maestro_login:
+    needs: [build_android_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_android_e2e.outputs.build_id }}
+      flow_path: ['.maestro/login-android.yml']

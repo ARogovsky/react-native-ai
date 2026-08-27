@@ -1,0 +1,21 @@
+name: e2e-login-ios
+
+# Cloud gate: EAS builds an iOS Simulator app and runs the login flow with Maestro.
+# Complements the Device Farm run, which exercises the store-signed IPA on a real device.
+on:
+  push:
+    branches: ['main']
+
+jobs:
+  build_ios_e2e:
+    type: build
+    params:
+      platform: ios
+      profile: e2e-sim
+
+  maestro_login:
+    needs: [build_ios_e2e]
+    type: maestro
+    params:
+      build_id: ${{ needs.build_ios_e2e.outputs.build_id }}
+      flow_path: ['.maestro/login-ios.yml']

@@ -1,0 +1,36 @@
+# Login flow for EAS Workflows (iOS Simulator build).
+# Asserts the signed-in screen renders — the path that crashed in build 8.
+# Clerk dev instances accept any +clerk_test address with the fixed OTP 424242, which is
+# why the e2e-sim profile pins the DEV publishable key.
+appId: com.unkd.elli
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+
+- assertVisible:
+    id: 'auth-email-start'
+- tapOn:
+    id: 'auth-email-start'
+
+- tapOn:
+    id: 'auth-email'
+- inputText: 'elli.e2e+clerk_test@example.com'
+- tapOn:
+    id: 'auth-send-code'
+
+- extendedWaitUntil:
+    visible:
+      id: 'auth-code'
+    timeout: 20000
+- tapOn:
+    id: 'auth-code'
+- inputText: '424242'
+- tapOn:
+    id: 'auth-verify'
+
+# Signed-in tree mounted.
+- extendedWaitUntil:
+    visible:
+      id: 'home-continue'
+    timeout: 30000
