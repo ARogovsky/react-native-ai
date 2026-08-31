@@ -69,6 +69,16 @@ interface Strings {
   somethingWentWrong: string
   goHome: string
   noInternet: string
+  // Legal acceptance (required by the Clerk instance for every sign-up strategy)
+  legalAccept: string
+  legalTerms: string
+  legalPrivacy: string
+  legalRequired: string
+  // Password fallback
+  continueWithPassword: string
+  passwordLabel: string
+  passwordPlaceholder: string
+  signInAction: string
 }
 
 const STRINGS: Record<Lang, Strings> = {
@@ -121,6 +131,14 @@ const STRINGS: Record<Lang, Strings> = {
     somethingWentWrong: 'Щось пішло не так',
     goHome: 'Головна',
     noInternet: 'Відсутнє підключення до інтернету',
+    legalAccept: 'Я приймаю',
+    legalTerms: 'Умови користування',
+    legalPrivacy: 'Політику конфіденційності',
+    legalRequired: 'Щоб продовжити, прийміть Умови та Політику конфіденційності.',
+    continueWithPassword: 'Увійти з паролем',
+    passwordLabel: 'Пароль',
+    passwordPlaceholder: 'Ваш пароль',
+    signInAction: 'Увійти',
   },
   ru: {
     greeting: 'Привет, я Elli, твой персональный психолог. Чем могу помочь?',
@@ -171,6 +189,14 @@ const STRINGS: Record<Lang, Strings> = {
     somethingWentWrong: 'Что-то пошло не так',
     goHome: 'Главная',
     noInternet: 'Нет подключения к интернету',
+    legalAccept: 'Я принимаю',
+    legalTerms: 'Условия использования',
+    legalPrivacy: 'Политику конфиденциальности',
+    legalRequired: 'Чтобы продолжить, примите Условия и Политику конфиденциальности.',
+    continueWithPassword: 'Войти с паролем',
+    passwordLabel: 'Пароль',
+    passwordPlaceholder: 'Ваш пароль',
+    signInAction: 'Войти',
   },
   en: {
     greeting: "Hi, I'm Elli, your personal psychologist. How can I help you?",
@@ -221,6 +247,14 @@ const STRINGS: Record<Lang, Strings> = {
     somethingWentWrong: 'Something went wrong',
     goHome: 'home',
     noInternet: 'No internet connection',
+    legalAccept: 'I accept the',
+    legalTerms: 'Terms of Service',
+    legalPrivacy: 'Privacy Policy',
+    legalRequired: 'Please accept the Terms and the Privacy Policy to continue.',
+    continueWithPassword: 'Continue with Password',
+    passwordLabel: 'Password',
+    passwordPlaceholder: 'Your password',
+    signInAction: 'Sign in',
   },
 }
 

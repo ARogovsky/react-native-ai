@@ -8,11 +8,13 @@ import {
   Platform,
   Image,
   Pressable,
+  ScrollView,
 } from 'react-native'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
 import { t } from '../lib/i18n'
 import { SocialButtons } from './SocialButtons'
 import { AuthButton } from './AuthButton'
+import { LegalConsent } from './LegalConsent'
 import { colors, images, radii, spacing, type } from '../design/tokens'
 
 // Avoids depending on a specific error-guard export across Clerk versions.
@@ -21,51 +23,116 @@ function clerkErrorList(e: unknown): Array<{ code?: string; message?: string; lo
   return Array.isArray(errs) ? errs : []
 }
 
+function hasCode(e: unknown, ...codes: string[]): boolean {
+  return clerkErrorList(e).some((x) => !!x.code && codes.includes(x.code))
+}
+
+type Step = 'choose' | 'email' | 'register' | 'code' | 'password'
+
 /**
- * Login screen — "EN Registered / Login" frame: logo, "Know Thyself", then the
- * Continue-with buttons. Email keeps the passwordless code flow (Clerk custom flow),
- * revealed only after the user picks it.
+ * Login screen — "EN Registered / Login" frame: logo, "Know Thyself", the Continue-with
+ * buttons, and the consent checkbox.
+ *
+ * Shaped after what the Clerk instance actually requires
+ * (GET https://clerk.e-lli.com/v1/environment):
+ *  - `sign_up.legal_consent_enabled: true` -> `legal_accepted` is required for every
+ *    strategy, so the checkbox gates Google, Apple and email alike. Without it the
+ *    sign-up stays `missing_requirements` and no session is created.
+ *  - `password.required: true` -> a new account cannot be created from an email code
+ *    alone, so registration asks for a password.
+ *  - `email_address.first_factors: ['email_code']` -> returning users sign in with a code
+ *    (one button, no password), with identifier + password kept as the fallback.
  */
 export function AuthScreen() {
   const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp()
   const { signIn, setActive: setActiveSignIn, isLoaded: signInLoaded } = useSignIn()
 
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [code, setCode] = useState('')
-  const [step, setStep] = useState<'choose' | 'email' | 'code'>('choose')
-  const [mode, setMode] = useState<'signUp' | 'signIn'>('signUp')
+  const [legalAccepted, setLegalAccepted] = useState(false)
+  const [step, setStep] = useState<Step>('choose')
+  const [mode, setMode] = useState<'signUp' | 'signIn'>('signIn')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const ready = signUpLoaded && signInLoaded
 
-  async function sendCode() {
-    if (!ready || !email.trim() || loading) return
+  function requireLegal(): boolean {
+    if (legalAccepted) return true
+    setError(t.legalRequired)
+    return false
+  }
+
+  /** Existing account -> email code. Unknown address -> registration (password + consent). */
+  async function startEmail() {
+    if (!ready || !email.trim() || loading || !requireLegal()) return
     setLoading(true)
     setError('')
-    const addr = email.trim()
     try {
-      // Try sign-up first; if the account already exists, fall back to sign-in.
-      try {
-        await signUp!.create({ emailAddress: addr })
-        await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' })
-        setMode('signUp')
-      } catch (e) {
-        if (clerkErrorList(e).some((x) => x.code === 'form_identifier_exists')) {
-          const attempt = await signIn!.create({ identifier: addr })
-          const factor = attempt.supportedFirstFactors?.find(
-            (f: any) => f.strategy === 'email_code'
-          ) as any
-          await signIn!.prepareFirstFactor({
-            strategy: 'email_code',
-            emailAddressId: factor.emailAddressId,
-          })
-          setMode('signIn')
-        } else {
-          throw e
-        }
+      const attempt = await signIn!.create({ identifier: email.trim() })
+      const factor = attempt.supportedFirstFactors?.find(
+        (f: any) => f.strategy === 'email_code'
+      ) as any
+      if (!factor) {
+        setStep('password')
+        return
       }
+      await signIn!.prepareFirstFactor({
+        strategy: 'email_code',
+        emailAddressId: factor.emailAddressId,
+      })
+      setMode('signIn')
       setStep('code')
+    } catch (e) {
+      if (hasCode(e, 'form_identifier_not_found')) {
+        setStep('register')
+      } else {
+        setError(extractError(e))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /** Registration: the instance requires email + password + accepted legal documents. */
+  async function register() {
+    if (!ready || !email.trim() || !password || loading || !requireLegal()) return
+    setLoading(true)
+    setError('')
+    try {
+      await signUp!.create({
+        emailAddress: email.trim(),
+        password,
+        legalAccepted: true,
+      })
+      await signUp!.prepareEmailAddressVerification({ strategy: 'email_code' })
+      setMode('signUp')
+      setStep('code')
+    } catch (e) {
+      if (hasCode(e, 'form_identifier_exists')) {
+        setStep('password')
+        setError('')
+      } else {
+        setError(extractError(e))
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  /** Fallback path: identifier + password, no code round-trip. */
+  async function signInWithPassword() {
+    if (!ready || !email.trim() || !password || loading || !requireLegal()) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await signIn!.create({ identifier: email.trim(), password })
+      if (res.status === 'complete') {
+        await setActiveSignIn!({ session: res.createdSessionId })
+      } else {
+        setError(t.genericError)
+      }
     } catch (e) {
       setError(extractError(e))
     } finally {
@@ -105,26 +172,47 @@ export function AuthScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.screen}
     >
-      <View style={styles.brand}>
-        <Image source={images.logo} style={styles.logo} resizeMode="contain" />
-        <Text style={styles.tagline}>{t.knowThyself}</Text>
-      </View>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.brand}>
+          <Image source={images.logo} style={styles.logo} resizeMode="contain" />
+          <Text style={styles.tagline}>{t.knowThyself}</Text>
+        </View>
 
-      <View style={styles.actions}>
-        {step === 'choose' && (
-          <>
-            <SocialButtons onError={setError} />
-            <AuthButton
-              testID="auth-email-start"
-              icon="mail-outline"
-              label={t.continueWithEmail}
-              onPress={() => setStep('email')}
-            />
-          </>
-        )}
+        <View style={styles.actions}>
+          <LegalConsent
+            accepted={legalAccepted}
+            onToggle={(next) => {
+              setLegalAccepted(next)
+              if (next && error === t.legalRequired) setError('')
+            }}
+          />
 
-        {step === 'email' && (
-          <>
+          {step === 'choose' && (
+            <>
+              <SocialButtons legalAccepted={legalAccepted} onError={setError} />
+              <AuthButton
+                testID="auth-email-start"
+                icon="mail-outline"
+                label={t.continueWithEmail}
+                onPress={() => (requireLegal() ? setStep('email') : undefined)}
+                disabled={!legalAccepted}
+              />
+              <Pressable
+                testID="auth-password-start"
+                accessibilityRole="button"
+                onPress={() => (requireLegal() ? setStep('password') : undefined)}
+                style={styles.backLink}
+              >
+                <Text style={styles.backLinkText}>{t.continueWithPassword}</Text>
+              </Pressable>
+            </>
+          )}
+
+          {(step === 'email' || step === 'register' || step === 'password') && (
             <View style={styles.inputWrap}>
               <TextInput
                 testID="auth-email"
@@ -137,51 +225,109 @@ export function AuthScreen() {
                 keyboardType="email-address"
                 autoCorrect={false}
                 textContentType="emailAddress"
-                autoFocus
+                autoFocus={step === 'email'}
+                editable={!loading}
               />
             </View>
-            <AuthButton
-              testID="auth-send-code"
-              icon="mail-outline"
-              label={t.sendCode}
-              onPress={sendCode}
-              loading={loading}
-              disabled={loading}
-            />
-            <BackLink onPress={() => setStep('choose')} />
-          </>
-        )}
+          )}
 
-        {step === 'code' && (
-          <>
+          {(step === 'register' || step === 'password') && (
             <View style={styles.inputWrap}>
               <TextInput
-                testID="auth-code"
+                testID="auth-password"
                 style={styles.input}
-                value={code}
-                onChangeText={setCode}
-                placeholder={t.codePlaceholder}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={t.passwordPlaceholder}
                 placeholderTextColor={colors.muted}
-                keyboardType="number-pad"
-                autoComplete="one-time-code"
-                textContentType="oneTimeCode"
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+                textContentType={step === 'register' ? 'newPassword' : 'password'}
                 autoFocus
+                editable={!loading}
               />
             </View>
-            <AuthButton
-              testID="auth-verify"
-              icon="checkmark"
-              label={t.verify}
-              onPress={verify}
-              loading={loading}
-              disabled={loading}
-            />
-            <BackLink onPress={() => setStep('email')} />
-          </>
-        )}
+          )}
 
-        {!!error && <Text style={styles.error}>{error}</Text>}
-      </View>
+          {step === 'email' && (
+            <>
+              <AuthButton
+                testID="auth-send-code"
+                icon="mail-outline"
+                label={t.sendCode}
+                onPress={startEmail}
+                loading={loading}
+                disabled={loading || !legalAccepted}
+              />
+              <BackLink onPress={() => setStep('choose')} />
+            </>
+          )}
+
+          {step === 'register' && (
+            <>
+              <AuthButton
+                testID="auth-register"
+                icon="mail-outline"
+                label={t.sendCode}
+                onPress={register}
+                loading={loading}
+                disabled={loading || !legalAccepted}
+              />
+              <BackLink onPress={() => setStep('email')} />
+            </>
+          )}
+
+          {step === 'password' && (
+            <>
+              <AuthButton
+                testID="auth-password-submit"
+                icon="lock-closed-outline"
+                label={t.signInAction}
+                onPress={signInWithPassword}
+                loading={loading}
+                disabled={loading || !legalAccepted}
+              />
+              <BackLink onPress={() => setStep('choose')} />
+            </>
+          )}
+
+          {step === 'code' && (
+            <>
+              <View style={styles.inputWrap}>
+                <TextInput
+                  testID="auth-code"
+                  style={styles.input}
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder={t.codePlaceholder}
+                  placeholderTextColor={colors.muted}
+                  keyboardType="number-pad"
+                  autoComplete="one-time-code"
+                  textContentType="oneTimeCode"
+                  autoFocus
+                  editable={!loading}
+                />
+              </View>
+              <AuthButton
+                testID="auth-verify"
+                icon="checkmark"
+                label={t.verify}
+                onPress={verify}
+                loading={loading}
+                disabled={loading}
+              />
+              <BackLink onPress={() => setStep('email')} />
+            </>
+          )}
+
+          {!!error && (
+            <Text testID="auth-error" style={styles.error}>
+              {error}
+            </Text>
+          )}
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   )
 }
@@ -200,12 +346,13 @@ function extractError(e: unknown): string {
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: colors.surface,
+  screen: { flex: 1, backgroundColor: colors.surface },
+  content: {
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    rowGap: 101,
+    paddingVertical: spacing.xxl,
+    rowGap: 60,
   },
   brand: { alignItems: 'center', rowGap: spacing.lg },
   logo: { width: 242, height: 65 },

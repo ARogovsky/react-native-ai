@@ -25,7 +25,24 @@ const WDA_PATH = readWdaPath();
 
 const PLATFORM = (process.env.DEVICEFARM_DEVICE_PLATFORM_NAME || 'iOS').toLowerCase();
 const IS_IOS = PLATFORM.includes('ios');
-const EMAIL = 'elli.e2e+clerk_test@example.com';
+// run_devicefarm.py generates a per-run address + password and ships them in the test
+// package; the account is deleted right after the run. Nothing is stored in the repo.
+function readFixture() {
+  try {
+    return JSON.parse(fs.readFileSync('fixture.json', 'utf8'));
+  } catch (e) {
+    return {};
+  }
+}
+const FIXTURE = readFixture();
+
+const EMAIL = FIXTURE.email || process.env.E2E_EMAIL || 'elli.e2e+clerk_test@example.com';
+// Needed when the address is not registered yet: the instance has
+// user_settings.attributes.password.required = true.
+const PASSWORD =
+  FIXTURE.password ||
+  process.env.E2E_PASSWORD ||
+  'Elli-' + Math.random().toString(36).slice(2, 12) + '-A1!';
 const OTP = '424242';
 const TIMEOUT = 30000;
 
@@ -110,10 +127,22 @@ describe('ELLI login on a real device', function () {
     // Login screen is up.
     const start = await driver.$(selector('auth-email-start'));
     await start.waitForDisplayed({ timeout: TIMEOUT });
+
+    // Consent is mandatory: the instance requires `legal_accepted` on every strategy, so
+    // the buttons stay disabled until the checkbox is ticked.
+    await tap(driver, 'auth-legal');
     await start.click();
 
     await type(driver, 'auth-email', EMAIL);
     await tap(driver, 'auth-send-code');
+
+    // Unknown address -> registration step, which also needs a password
+    // (instance has password.required: true). Known address -> straight to the code.
+    const passwordField = await driver.$(selector('auth-password'));
+    if (await passwordField.isDisplayed().catch(() => false)) {
+      await type(driver, 'auth-password', PASSWORD);
+      await tap(driver, 'auth-register');
+    }
 
     await type(driver, 'auth-code', OTP);
     await tap(driver, 'auth-verify');

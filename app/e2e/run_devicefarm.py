@@ -7,10 +7,17 @@ Inputs come from the build environment:
   DF_IOS_POOL_ARN     iOS device pool (Terraform-managed)
   DF_ANDROID_POOL_ARN Android device pool (Terraform-managed)
   DF_REGION           us-west-2
+  APP_SECRET_ID       Secrets Manager id holding CLERK_SECRET_KEY
+  APP_SECRET_REGION   region of that secret
 
 Uploads app + Appium package + test spec, schedules the run, waits for it, then prints the
 verdict and the test-spec output so the whole story sits in the CodeBuild log. The exit
 code mirrors the Device Farm result, so a failed login turns the build red.
+
+Test fixtures are borrowed, never left behind: Clerk test mode is switched on for the run
+(it makes the +clerk_test address accept the fixed OTP) and switched back off in `finally`,
+and the account the app creates during the run is deleted afterwards — including when the
+run fails.
 """
 
 import json
@@ -18,7 +25,10 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
 import urllib.request
+import uuid
 import zipfile
 
 REGION = os.environ.get("DF_REGION", "us-west-2")
@@ -29,8 +39,17 @@ POOL_ARN = os.environ["DF_IOS_POOL_ARN"] if PLATFORM == "ios" else os.environ["D
 APP_TYPE = "IOS_APP" if PLATFORM == "ios" else "ANDROID_APP"
 APP_FILE = "app.ipa" if PLATFORM == "ios" else "app.apk"
 ZIP_FILE = "e2e-package.zip"
+FIXTURE_FILE = "fixture.json"
+APP_SECRET_ID = os.environ.get("APP_SECRET_ID", "elli-eu-north-1-app")
+APP_SECRET_REGION = os.environ.get("APP_SECRET_REGION", "eu-north-1")
 POLL_SECONDS = 30
 MAX_MINUTES = 45
+
+# Clerk treats an address as a test address through the `+clerk_test` subaddress, so the
+# per-run id goes in front of the plus sign.
+RUN_ID = uuid.uuid4().hex[:10]
+E2E_EMAIL = "elli.e2e.%s+clerk_test@example.com" % RUN_ID
+E2E_PASSWORD = "Elli-%s-A1!" % uuid.uuid4().hex[:12]
 
 
 def aws(args):
@@ -38,6 +57,66 @@ def aws(args):
     if out.returncode != 0:
         raise SystemExit("aws %s failed: %s" % (" ".join(args[:3]), out.stderr.strip()[:400]))
     return json.loads(out.stdout) if out.stdout.strip() else {}
+
+
+def clerk_secret():
+    payload = subprocess.run(
+        [
+            "aws", "secretsmanager", "get-secret-value",
+            "--secret-id", APP_SECRET_ID,
+            "--region", APP_SECRET_REGION,
+            "--query", "SecretString",
+            "--output", "text",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if payload.returncode != 0:
+        raise SystemExit("cannot read app secret: " + payload.stderr.strip()[:300])
+    return json.loads(payload.stdout)["CLERK_SECRET_KEY"]
+
+
+CLERK_KEY = clerk_secret()
+
+
+def clerk(method, path, body=None):
+    req = urllib.request.Request(
+        "https://api.clerk.com/v1" + path,
+        data=json.dumps(body).encode() if body is not None else None,
+        method=method,
+        headers={
+            "Authorization": "Bearer " + CLERK_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "curl/8.7.1",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            raw = response.read()
+            return response.status, (json.loads(raw) if raw.strip() else {})
+    except urllib.error.HTTPError as e:
+        raw = e.read()
+        try:
+            return e.code, json.loads(raw or b"{}")
+        except Exception:
+            return e.code, {"raw": raw[:300].decode("utf-8", "replace")}
+
+
+def set_test_mode(enabled):
+    status, _ = clerk("PATCH", "/instance", {"test_mode": enabled})
+    print("clerk test_mode=%s -> http %s" % (enabled, status))
+    return status in (200, 204)
+
+
+def delete_e2e_user():
+    """Remove the account the run created, so prod keeps no leftovers."""
+    status, found = clerk("GET", "/users?limit=10&email_address=" + urllib.parse.quote(E2E_EMAIL))
+    users = found if isinstance(found, list) else found.get("data", [])
+    print("cleanup: users matching %s -> %s (http %s)" % (E2E_EMAIL, len(users), status))
+    for user in users:
+        code, _ = clerk("DELETE", "/users/" + user["id"])
+        print("cleanup: deleted %s -> http %s" % (user["id"], code))
 
 
 print("platform=%s pool=%s" % (PLATFORM, POOL_ARN.rsplit("/", 1)[-1]))
@@ -48,10 +127,17 @@ if fetch.returncode != 0 or not os.path.exists(APP_FILE):
     raise SystemExit("artifact download failed: " + fetch.stderr.strip()[:300])
 print("app bytes:", os.path.getsize(APP_FILE))
 
+# Credentials for this run only: generated here, shipped inside the test package, and the
+# account they create is deleted in the cleanup step below. Nothing is committed.
+with open(FIXTURE_FILE, "w") as f:
+    json.dump({"email": E2E_EMAIL, "password": E2E_PASSWORD}, f)
+
 with zipfile.ZipFile(ZIP_FILE, "w", zipfile.ZIP_DEFLATED) as z:
     z.write("package.json")
     z.write("login.test.js")
+    z.write(FIXTURE_FILE)
 print("test package bytes:", os.path.getsize(ZIP_FILE))
+print("fixture address:", E2E_EMAIL)
 
 
 def upload(name, kind, path):
@@ -86,27 +172,39 @@ app_arn = upload(APP_FILE, APP_TYPE, APP_FILE)
 pkg_arn = upload(ZIP_FILE, "APPIUM_NODE_TEST_PACKAGE", ZIP_FILE)
 spec_arn = upload("testspec.yml", "APPIUM_NODE_TEST_SPEC", "testspec.yml")
 
-run = aws(
-    [
-        "devicefarm", "schedule-run",
-        "--project-arn", PROJECT_ARN,
-        "--app-arn", app_arn,
-        "--device-pool-arn", POOL_ARN,
-        "--name", "%s-login-flow" % PLATFORM,
-        "--test", json.dumps({"type": "APPIUM_NODE", "testPackageArn": pkg_arn, "testSpecArn": spec_arn}),
-        "--region", REGION,
-    ]
-)["run"]
-run_arn = run["arn"]
-print("run:", run_arn)
+# Test mode makes the +clerk_test address accept the fixed OTP. It is a production
+# instance, so it must be off again by the time this build ends — hence the try/finally.
+if not set_test_mode(True):
+    raise SystemExit("could not enable Clerk test mode")
 
-deadline = time.time() + MAX_MINUTES * 60
-while True:
-    run = aws(["devicefarm", "get-run", "--arn", run_arn, "--region", REGION])["run"]
-    print("status=%s result=%s counters=%s" % (run["status"], run.get("result"), json.dumps(run.get("counters", {}))))
-    if run["status"] == "COMPLETED" or time.time() > deadline:
-        break
-    time.sleep(POLL_SECONDS)
+try:
+    run = aws(
+        [
+            "devicefarm", "schedule-run",
+            "--project-arn", PROJECT_ARN,
+            "--app-arn", app_arn,
+            "--device-pool-arn", POOL_ARN,
+            "--name", "%s-login-flow" % PLATFORM,
+            "--test", json.dumps({"type": "APPIUM_NODE", "testPackageArn": pkg_arn, "testSpecArn": spec_arn}),
+            "--region", REGION,
+        ]
+    )["run"]
+    run_arn = run["arn"]
+    print("run:", run_arn)
+
+    deadline = time.time() + MAX_MINUTES * 60
+    while True:
+        run = aws(["devicefarm", "get-run", "--arn", run_arn, "--region", REGION])["run"]
+        print("status=%s result=%s counters=%s" % (run["status"], run.get("result"), json.dumps(run.get("counters", {}))))
+        if run["status"] == "COMPLETED" or time.time() > deadline:
+            break
+        time.sleep(POLL_SECONDS)
+finally:
+    # Both steps run even if scheduling raised: prod goes back to how it was.
+    try:
+        delete_e2e_user()
+    finally:
+        set_test_mode(False)
 
 print("device minutes:", json.dumps(run.get("deviceMinutes", {})))
 
