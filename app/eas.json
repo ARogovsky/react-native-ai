@@ -33,6 +33,16 @@
         "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com"
       }
     },
+    "production-apk": {
+      "extends": "production",
+      "autoIncrement": false,
+      "environment": "production",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_ENV": "PRODUCTION",
+        "EXPO_PUBLIC_PROD_API_URL": "https://api.e-lli.com"
+      }
+    },
     "e2e": {
       "android": { "buildType": "apk" },
       "ios": { "simulator": false },
