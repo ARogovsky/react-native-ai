@@ -65,6 +65,15 @@ async function type(driver, testId, text) {
   await el.waitForDisplayed({ timeout: TIMEOUT });
   await el.click();
   await el.setValue(text);
+  // On Android the soft keyboard covers the button below the field, and Appium reports a
+  // covered element as not displayed — that is what killed the registration step.
+  if (!IS_IOS) {
+    try {
+      await driver.hideKeyboard();
+    } catch (e) {
+      // Already hidden: nothing to do.
+    }
+  }
   return el;
 }
 
