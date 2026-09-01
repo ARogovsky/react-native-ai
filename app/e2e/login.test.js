@@ -47,8 +47,10 @@ const OTP = '424242';
 const TIMEOUT = 30000;
 
 function selector(testId) {
-  // React Native maps testID to accessibility id on both platforms.
-  return `~${testId}`;
+  // iOS: testID becomes the accessibility identifier, so `~id` matches.
+  // Android: testID becomes resource-id, while content-desc holds accessibilityLabel —
+  // `~id` would look at content-desc and miss every labelled button.
+  return IS_IOS ? `~${testId}` : `//*[@resource-id="${testId}"]`;
 }
 
 async function tap(driver, testId) {
