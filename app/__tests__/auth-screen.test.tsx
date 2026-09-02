@@ -39,7 +39,9 @@ jest.mock('@clerk/expo/apple', () => ({
 import React from 'react'
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import { AuthScreen } from '../src/auth/AuthScreen'
-import { t } from '../src/lib/i18n'
+import { getStrings } from '../src/lib/i18n'
+
+const t = getStrings()
 
 function identifierNotFound() {
   return Object.assign(new Error('not found'), {

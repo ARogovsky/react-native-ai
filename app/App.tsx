@@ -16,6 +16,7 @@ import { ClerkProvider, ClerkLoaded, ClerkLoading, Show } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { AuthScreen } from './src/auth/AuthScreen'
 import { SignedInApp } from './src/SignedInApp'
+import { getStrings, hydrateLang } from './src/lib/i18n'
 
 LogBox.ignoreLogs(['No native splash screen registered'])
 
@@ -47,6 +48,12 @@ export default function App() {
       .catch(() => {})
   }, [])
 
+  // Restores the language picked in the profile; until it resolves the app shows the
+  // locale-derived default, which is what a first launch gets anyway.
+  useEffect(() => {
+    void hydrateLang()
+  }, [])
+
   function _setTheme(next: string) {
     setTheme(next)
     AsyncStorage.setItem('rnai-theme', next).catch(() => {})
@@ -67,7 +74,7 @@ export default function App() {
           <ClerkLoading>
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
               <ActivityIndicator />
-              <Text style={{ marginTop: 12, color: '#666' }}>Loading…</Text>
+              <Text style={{ marginTop: 12, color: '#666' }}>{getStrings().loading}</Text>
             </View>
           </ClerkLoading>
           <ClerkLoaded>

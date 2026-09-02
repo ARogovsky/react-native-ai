@@ -38,7 +38,9 @@ jest.mock('@clerk/expo', () => ({
 import React from 'react'
 import { render, act } from '@testing-library/react-native'
 import { SignedInApp } from '../src/SignedInApp'
-import { t } from '../src/lib/i18n'
+import { getStrings } from '../src/lib/i18n'
+
+const t = getStrings()
 
 // The native safe-area module does not exist under jest, so metrics are supplied here.
 // The real SafeAreaProvider is used on purpose: mocking it away would hide exactly the

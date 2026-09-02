@@ -1,12 +1,16 @@
 import { useState } from 'react'
-import { View, Text, StyleSheet, Image, Pressable, ScrollView } from 'react-native'
+import { View, Text, StyleSheet, Image, Pressable, ScrollView, Linking } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useClerk, useUser } from '@clerk/expo'
-import { t, lang } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { LanguageModal } from '../components/LanguageModal'
+import { InfoModal } from '../components/InfoModal'
 import { colors, images, layout, radii, spacing, type } from '../design/tokens'
+
+/** Where "leave feedback" sends the user: the contact page the web client links to. */
+const FEEDBACK_URL = 'https://e-lli.com/contact'
 
 /** Profile screen — "EN Profile" frame. */
 export function Profile() {
@@ -14,7 +18,9 @@ export function Profile() {
   const insets = useSafeAreaInsets()
   const { signOut } = useClerk()
   const { user } = useUser()
+  const { t, lang } = useLang()
   const [languageOpen, setLanguageOpen] = useState(false)
+  const [opportunitiesOpen, setOpportunitiesOpen] = useState(false)
 
   const displayName =
     user?.fullName ||
@@ -62,19 +68,33 @@ export function Profile() {
             </View>
           </Pressable>
 
-          <View style={styles.row}>
+          <Pressable
+            testID="profile-opportunities"
+            accessibilityRole="button"
+            onPress={() => setOpportunitiesOpen(true)}
+            style={styles.row}
+          >
             <View style={styles.rowLeft}>
               <Ionicons name="sparkles-outline" size={24} color={colors.text} />
               <Text style={styles.rowLabel}>{t.opportunities}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.text} />
-          </View>
+          </Pressable>
         </View>
 
-        <View style={styles.feedbackButton}>
+        <Pressable
+          testID="profile-feedback"
+          accessibilityRole="button"
+          accessibilityHint={t.feedbackHint}
+          // A failed openURL must not crash the screen; there is nothing else to do here.
+          onPress={() => {
+            void Linking.openURL(FEEDBACK_URL).catch(() => {})
+          }}
+          style={styles.feedbackButton}
+        >
           <Text style={styles.feedbackLabel}>{t.leaveFeedback}</Text>
           <Text style={styles.feedbackSubtitle}>{t.feedbackSubtitle}</Text>
-        </View>
+        </Pressable>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.xxl) }]}>
@@ -90,6 +110,12 @@ export function Profile() {
       </View>
 
       <LanguageModal visible={languageOpen} onClose={() => setLanguageOpen(false)} />
+      <InfoModal
+        visible={opportunitiesOpen}
+        title={t.opportunitiesTitle}
+        body={t.opportunitiesBody}
+        onClose={() => setOpportunitiesOpen(false)}
+      />
     </View>
   )
 }

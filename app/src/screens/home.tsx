@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, ImageBackground, Pressable, Image } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUser } from '@clerk/expo'
 import { useChat } from '../ChatProvider'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { colors, images, layout, radii, spacing, type } from '../design/tokens'
 
 /**
@@ -14,6 +15,8 @@ export function Home() {
   const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { sessions, selectSession, newChat } = useChat()
+  const { t } = useLang()
+  const { user } = useUser()
 
   const lastSession = sessions[0]
   const topic = lastSession?.title || ''
@@ -58,7 +61,13 @@ export function Home() {
           onPress={() => navigation.navigate('Profile')}
           style={styles.profileButton}
         >
-          <Image source={images.avatarPlaceholder} style={styles.avatar} />
+          {/* Clerk always serves an imageUrl (generated initials when nothing was
+              uploaded); the bundled asset only covers the moment before the user loads. */}
+          <Image
+            testID="home-avatar"
+            source={user?.imageUrl ? { uri: user.imageUrl } : images.avatarPlaceholder}
+            style={styles.avatar}
+          />
           <Text style={styles.profileLabel}>{t.profile}</Text>
         </Pressable>
       </View>

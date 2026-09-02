@@ -3,7 +3,7 @@ import { View, StyleSheet, Platform } from 'react-native'
 import { useSignInWithGoogle } from '@clerk/expo/google'
 import { useSignInWithApple } from '@clerk/expo/apple'
 import type { SetActive, SignUpResource } from '@clerk/shared/types'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { AuthButton } from './AuthButton'
 import { spacing } from '../design/tokens'
 
@@ -41,6 +41,7 @@ export function SocialButtons({
 }) {
   const { startGoogleAuthenticationFlow } = useSignInWithGoogle()
   const { startAppleAuthenticationFlow } = useSignInWithApple()
+  const { t } = useLang()
   const [busy, setBusy] = useState<null | 'google' | 'apple'>(null)
 
   async function run(provider: 'google' | 'apple', start: () => Promise<FlowResult>) {

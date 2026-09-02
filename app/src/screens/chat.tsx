@@ -18,7 +18,7 @@ import Markdown from '@ronradtke/react-native-markdown-display'
 import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
 import { useChat, ChatMsg } from '../ChatProvider'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { colors, layout, radii, spacing, type } from '../design/tokens'
 
 /** Chat screen — "EN Chat" frame of the handoff. */
@@ -27,6 +27,7 @@ export function Chat() {
   const navigation = useNavigation<any>()
   const insets = useSafeAreaInsets()
   const { showActionSheetWithOptions } = useActionSheet()
+  const { t } = useLang()
 
   const [input, setInput] = useState('')
   const scrollViewRef = useRef<ScrollView | null>(null)
@@ -146,10 +147,16 @@ function Bubble({
   message: ChatMsg
   onLongPress: (text: string) => void
 }) {
+  const { t } = useLang()
   const isUser = message.role === 'user'
+  const spoken = message.error ? t.genericError : message.content
   return (
     <View style={[styles.row, isUser ? styles.rowUser : styles.rowAgent]}>
       <Pressable
+        // testID + accessibilityLabel: the label is how a screen reader — and the device
+        // test — reads a message, since the body is rendered as Markdown, not a Text.
+        testID={isUser ? 'chat-bubble-user' : 'chat-bubble-agent'}
+        accessibilityLabel={spoken}
         onLongPress={() => onLongPress(message.content)}
         style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAgent]}
       >

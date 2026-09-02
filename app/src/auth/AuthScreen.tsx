@@ -11,7 +11,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
-import { t } from '../lib/i18n'
+import { getStrings, useLang } from '../lib/i18n'
 import { SocialButtons } from './SocialButtons'
 import { AuthButton } from './AuthButton'
 import { LegalConsent } from './LegalConsent'
@@ -46,6 +46,7 @@ type Step = 'choose' | 'email' | 'register' | 'code' | 'password'
 export function AuthScreen() {
   const { signUp, setActive: setActiveSignUp, isLoaded: signUpLoaded } = useSignUp()
   const { signIn, setActive: setActiveSignIn, isLoaded: signInLoaded } = useSignIn()
+  const { t } = useLang()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -333,6 +334,7 @@ export function AuthScreen() {
 }
 
 function BackLink({ onPress }: { onPress: () => void }) {
+  const { t } = useLang()
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={styles.backLink}>
       <Text style={styles.backLinkText}>{t.back}</Text>
@@ -340,9 +342,29 @@ function BackLink({ onPress }: { onPress: () => void }) {
   )
 }
 
+/**
+ * Clerk answers in English. Known codes get our own copy so the screen stays in one
+ * language; anything unmapped falls back to the neutral message instead of dropping an
+ * English sentence into a Ukrainian form.
+ */
+const CLERK_ERROR_COPY: Record<string, keyof ReturnType<typeof getStrings>> = {
+  form_code_incorrect: 'codeIncorrect',
+  verification_failed: 'codeIncorrect',
+  form_password_incorrect: 'passwordIncorrect',
+  form_identifier_not_found: 'accountNotFound',
+  form_password_pwned: 'passwordWeak',
+  form_password_length_too_short: 'passwordWeak',
+  form_param_format_invalid: 'emailInvalid',
+  form_identifier_exists: 'accountExists',
+}
+
 function extractError(e: unknown): string {
-  const list = clerkErrorList(e)
-  return list[0]?.longMessage || list[0]?.message || t.genericError
+  const strings = getStrings()
+  for (const item of clerkErrorList(e)) {
+    const key = item.code ? CLERK_ERROR_COPY[item.code] : undefined
+    if (key) return strings[key]
+  }
+  return strings.genericError
 }
 
 const styles = StyleSheet.create({

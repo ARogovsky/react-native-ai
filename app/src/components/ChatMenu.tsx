@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { useChat } from '../ChatProvider'
 import { ChatSession } from '../lib/sessions'
 import { isFavorite } from '../lib/favorites'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { DeleteChatModal, RenameChatModal } from './ConfirmModals'
 import { colors, layout, spacing, type } from '../design/tokens'
 
@@ -28,6 +28,7 @@ export function ChatMenu() {
     toggleFavorite,
   } = useChat()
 
+  const { t } = useLang()
   const [renaming, setRenaming] = useState<ChatSession | null>(null)
   const [deleting, setDeleting] = useState<ChatSession | null>(null)
 
@@ -138,14 +139,16 @@ export function ChatMenu() {
 
 const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.backdrop },
+  // The drawer hangs off the right edge: it is opened from the header button in the
+  // top-right corner, so it slides in from the same side.
   panel: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    left: 0,
+    right: 0,
     width: layout.drawerWidth,
     backgroundColor: colors.background,
-    paddingRight: spacing.lg,
+    paddingLeft: spacing.lg,
   },
   header: {
     height: layout.drawerHeaderHeight,
@@ -154,10 +157,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     borderBottomWidth: 1,
     borderBottomColor: colors.divider,
-    marginLeft: spacing.lg,
+    marginRight: spacing.lg,
   },
   headerTitle: { ...type.bodySmall, color: colors.text, textAlign: 'center' },
-  list: { flex: 1, marginLeft: spacing.lg },
+  list: { flex: 1, marginRight: spacing.lg },
   listContent: { paddingVertical: spacing.md, rowGap: spacing.md },
   muted: { ...type.message, color: colors.muted, paddingVertical: spacing.lg, textAlign: 'center' },
   row: {
@@ -169,7 +172,7 @@ const styles = StyleSheet.create({
   rowTitle: { flex: 1 },
   rowText: { ...type.message, color: colors.text },
   rowTextActive: { fontFamily: type.brandName.fontFamily },
-  footer: { paddingTop: spacing.md, marginLeft: spacing.lg },
+  footer: { paddingTop: spacing.md, marginRight: spacing.lg },
   newChatButton: {
     height: 34,
     borderTopWidth: 1,

@@ -1,7 +1,7 @@
 import React from 'react'
 import { ImageBackground, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { colors, images, spacing, type } from './design/tokens'
-import { t } from './lib/i18n'
+import { getStrings } from './lib/i18n'
 
 /**
  * Renders any uncaught render/runtime JS error instead of a black void, styled after the
@@ -33,7 +33,9 @@ export class ErrorBoundary extends React.Component<
       <ImageBackground source={images.errorBackground} style={styles.screen} resizeMode="cover">
         <View style={styles.scrim} />
         <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.headline}>{t.somethingWentWrong}</Text>
+          {/* A class component cannot use the language hook; read the current strings
+              directly — the crash screen never needs to re-render on a switch. */}
+          <Text style={styles.headline}>{getStrings().somethingWentWrong}</Text>
           <Text selectable style={styles.message}>
             {String(error?.message || error)}
           </Text>

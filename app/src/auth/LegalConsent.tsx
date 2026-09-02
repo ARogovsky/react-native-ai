@@ -1,6 +1,6 @@
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { legalUrls } from '../lib/legal'
 import { colors, spacing, type } from '../design/tokens'
 
@@ -16,6 +16,8 @@ export function LegalConsent({
   accepted: boolean
   onToggle: (next: boolean) => void
 }) {
+  const { t } = useLang()
+
   return (
     <View style={styles.row}>
       <Pressable

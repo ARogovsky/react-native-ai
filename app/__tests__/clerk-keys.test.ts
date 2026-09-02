@@ -43,13 +43,44 @@ describe('Clerk publishable keys in eas.json', () => {
     }
   })
 
-  it('rejects an e2e profile carrying the live key', () => {
+  // The device run has to talk to api.e-lli.com, which only accepts production tokens,
+  // so an e2e profile on the dev instance is now the failure — not the live one.
+  it('rejects an e2e profile carrying the dev key', () => {
     const file = fixture('eas.fixture-e2e.json', {
+      build: {
+        'e2e-sim': {
+          env: {
+            EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY:
+              'pk_test_bmVhdC1iYWJvb24tNDIuY2xlcmsuYWNjb3VudHMuZGV2JA',
+          },
+        },
+      },
+    })
+    try {
+      expect(check(file)).toHaveLength(1)
+    } finally {
+      fs.unlinkSync(file)
+    }
+  })
+
+  it('accepts an e2e profile on the live instance', () => {
+    const file = fixture('eas.fixture-e2e-live.json', {
       build: {
         'e2e-sim': {
           env: { EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY: 'pk_live_Y2xlcmsuZS1sbGkuY29tJA' },
         },
       },
+    })
+    try {
+      expect(check(file)).toEqual([])
+    } finally {
+      fs.unlinkSync(file)
+    }
+  })
+
+  it('rejects an e2e profile that pins no key at all', () => {
+    const file = fixture('eas.fixture-e2e-nokey.json', {
+      build: { e2e: { env: { EXPO_PUBLIC_ENV: 'PRODUCTION' } } },
     })
     try {
       expect(check(file)).toHaveLength(1)

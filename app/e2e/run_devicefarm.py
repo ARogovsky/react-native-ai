@@ -20,6 +20,8 @@ and the account the app creates during the run is deleted afterwards — includi
 run fails.
 """
 
+import base64
+import datetime
 import json
 import os
 import subprocess
@@ -42,8 +44,12 @@ ZIP_FILE = "e2e-package.zip"
 FIXTURE_FILE = "fixture.json"
 APP_SECRET_ID = os.environ.get("APP_SECRET_ID", "elli-eu-north-1-app")
 APP_SECRET_REGION = os.environ.get("APP_SECRET_REGION", "eu-north-1")
+LANGFUSE_SECRET_ID = os.environ.get("LANGFUSE_SECRET_ID", "langfuse-api-keys")
+LANGFUSE_SECRET_REGION = os.environ.get("LANGFUSE_SECRET_REGION", "eu-north-1")
 POLL_SECONDS = 30
 MAX_MINUTES = 45
+# When this build started; scopes the Langfuse query to this run only.
+RUN_STARTED_AT = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # Clerk treats an address as a test address through the `+clerk_test` subaddress, so the
 # per-run id goes in front of the plus sign.
@@ -109,14 +115,66 @@ def set_test_mode(enabled):
     return status in (200, 204)
 
 
+# Clerk user ids seen during cleanup. The Langfuse check needs them, and by then the
+# accounts are already deleted, so they are remembered here.
+RUN_USER_IDS = []
+
+
 def delete_e2e_user():
     """Remove the account the run created, so prod keeps no leftovers."""
     status, found = clerk("GET", "/users?limit=10&email_address=" + urllib.parse.quote(E2E_EMAIL))
     users = found if isinstance(found, list) else found.get("data", [])
     print("cleanup: users matching %s -> %s (http %s)" % (E2E_EMAIL, len(users), status))
     for user in users:
+        RUN_USER_IDS.append(user["id"])
         code, _ = clerk("DELETE", "/users/" + user["id"])
         print("cleanup: deleted %s -> http %s" % (user["id"], code))
+
+
+def langfuse_config():
+    """Project keys for the cabinet: the same secret services/api reads at runtime."""
+    payload = subprocess.run(
+        [
+            "aws", "secretsmanager", "get-secret-value",
+            "--secret-id", LANGFUSE_SECRET_ID,
+            "--region", LANGFUSE_SECRET_REGION,
+            "--query", "SecretString",
+            "--output", "text",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if payload.returncode != 0:
+        raise SystemExit("cannot read langfuse secret: " + payload.stderr.strip()[:300])
+    return json.loads(payload.stdout)
+
+
+def langfuse_generations(user_id, since_iso):
+    """Generations the API traced for this user. An empty list means nothing was traced."""
+    cfg = langfuse_config()
+    auth = base64.b64encode(
+        ("%s:%s" % (cfg["LANGFUSE_PUBLIC_KEY"], cfg["LANGFUSE_SECRET_KEY"])).encode()
+    ).decode()
+    # v1 /api/public/observations is disabled on a v4 events_only deployment; model and
+    # usage are not part of the default field groups, hence the explicit `fields`.
+    path = (
+        "/api/public/v2/observations?userId=%s&fromStartTime=%s"
+        "&fields=basic,time,model,usage&limit=50"
+        % (urllib.parse.quote(user_id), urllib.parse.quote(since_iso))
+    )
+    req = urllib.request.Request(
+        cfg["LANGFUSE_HOST"] + path,
+        headers={"Authorization": "Basic " + auth, "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as response:
+            body = json.loads(response.read())
+    except urllib.error.HTTPError as e:
+        print("langfuse read failed: http %s %s" % (e.code, e.read()[:200]))
+        return []
+    items = body.get("data", [])
+    print("langfuse: %d observations for %s" % (len(items), user_id))
+    return [item for item in items if item.get("type") == "GENERATION"]
 
 
 print("platform=%s pool=%s" % (PLATFORM, POOL_ARN.rsplit("/", 1)[-1]))
@@ -224,5 +282,23 @@ for job in aws(["devicefarm", "list-jobs", "--arn", run_arn, "--region", REGION]
                 print("could not fetch artifact:", exc)
 
 result = run.get("result")
-print("\nFINAL result=%s status=%s" % (result, run["status"]))
-sys.exit(0 if result == "PASSED" else 1)
+# The device only proves the app rendered an answer. This proves the turn reached Bedrock
+# and landed in the cabinet with a model and token counts — the other half of "chat works".
+traced = False
+if result == "PASSED":
+    print("\n----- langfuse check -----")
+    if not RUN_USER_IDS:
+        print("no Clerk user id captured for this run; cannot check the traces")
+    for user_id in RUN_USER_IDS:
+        for gen in langfuse_generations(user_id, RUN_STARTED_AT):
+            usage = gen.get("usageDetails") or {}
+            print(
+                "  %s %s model=%s usage=%s"
+                % (gen.get("startTime"), gen.get("name"), gen.get("model"), json.dumps(usage))
+            )
+            if gen.get("model") and (usage.get("output") or 0) > 0:
+                traced = True
+    print("langfuse trace with model and output tokens:", traced)
+
+print("\nFINAL result=%s status=%s langfuse_traced=%s" % (result, run["status"], traced))
+sys.exit(0 if result == "PASSED" and traced else 1)

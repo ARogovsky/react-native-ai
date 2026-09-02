@@ -45,6 +45,24 @@ const PASSWORD =
   'Elli-' + Math.random().toString(36).slice(2, 12) + '-A1!';
 const OTP = '424242';
 const TIMEOUT = 30000;
+// A turn can take three Bedrock calls (first attempt, safety retry, recovery), so the
+// answer gets its own, longer budget.
+const ANSWER_TIMEOUT = 120000;
+const PROMPT = 'Привіт! Мені тривожно перед сном. З чого почати?';
+// The app renders one generic bubble for every failure; catching its copy in any of the
+// three languages is what turns "the chat is broken" into a red build.
+const ERROR_MARKERS = [
+  'Сталася помилка',
+  'Произошла ошибка',
+  'Something went wrong. Please try again.',
+];
+
+/** Message text as the platform exposes it: accessibilityLabel on the bubble. */
+async function answerText(el) {
+  const label = await el.getAttribute(IS_IOS ? 'label' : 'content-desc').catch(() => null);
+  if (label) return String(label);
+  return String((await el.getText().catch(() => '')) || '');
+}
 
 function selector(testId) {
   // iOS: testID becomes the accessibility identifier, so `~id` matches.
@@ -164,6 +182,37 @@ describe('ELLI login on a real device', function () {
 
     if (!(await home.isDisplayed())) {
       throw new Error('signed-in screen did not render');
+    }
+  });
+
+  // Login alone is not the product. This is the case the owner cares about, and it is the
+  // one that broke unnoticed: the API was reachable, but the app showed the error bubble
+  // because the running task held a database password that had been rotated away.
+  it('sends a message and renders the model answer', async () => {
+    await tap(driver, 'home-continue');
+
+    const input = await driver.$(selector('chat-input'));
+    await input.waitForDisplayed({ timeout: TIMEOUT });
+    await type(driver, 'chat-input', PROMPT);
+    await tap(driver, 'chat-send');
+
+    const bubble = await driver.$(selector('chat-bubble-agent'));
+    await bubble.waitForDisplayed({ timeout: ANSWER_TIMEOUT });
+
+    // The answer streams in, so the bubble exists long before it is complete.
+    await driver.waitUntil(async () => (await answerText(bubble)).length > 40, {
+      timeout: ANSWER_TIMEOUT,
+      interval: 2000,
+      timeoutMsg: 'no answer text arrived within ' + ANSWER_TIMEOUT + 'ms',
+    });
+
+    const answer = await answerText(bubble);
+    console.log('answer (first 200 chars):', answer.slice(0, 200));
+
+    for (const marker of ERROR_MARKERS) {
+      if (answer.includes(marker)) {
+        throw new Error('chat returned the error bubble: ' + answer.slice(0, 200));
+      }
     }
   });
 });

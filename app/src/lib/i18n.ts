@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { getLocales } from 'expo-localization'
 
 // UA-first pilot: default uk, with ru + en. Other locales fall back to en.
@@ -79,6 +81,19 @@ interface Strings {
   passwordLabel: string
   passwordPlaceholder: string
   signInAction: string
+  // Profile actions
+  opportunitiesTitle: string
+  opportunitiesBody: string
+  feedbackHint: string
+  // Shown by App.tsx before Clerk has loaded
+  loading: string
+  // Localised replacements for Clerk's English error messages
+  codeIncorrect: string
+  passwordIncorrect: string
+  accountNotFound: string
+  accountExists: string
+  passwordWeak: string
+  emailInvalid: string
 }
 
 const STRINGS: Record<Lang, Strings> = {
@@ -105,7 +120,7 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Підтвердити',
     authHint: 'Ми надішлемо код підтвердження на вашу пошту.',
     genericError: 'Сталася помилка. Спробуйте ще раз.',
-    continueWithGoogle: 'Continue with Google',
+    continueWithGoogle: 'Увійти через Google',
     continueWithApple: 'Увійти через Apple',
     orSeparator: 'або',
     back: 'Назад',
@@ -120,7 +135,7 @@ const STRINGS: Record<Lang, Strings> = {
     feedbackSubtitle: 'Щоб покращити нашу якість',
     logOut: 'Вийти',
     knowThyself: 'Пізнай Себе',
-    continueWithEmail: 'Continue with Email',
+    continueWithEmail: 'Увійти через пошту',
     deleteTitle: 'Ви впевнені, що хочете видалити?',
     deleteHint: 'Якщо ви видалите чат, ELLI втратить контекст',
     confirmDelete: 'Так, видалити чат',
@@ -139,6 +154,20 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Пароль',
     passwordPlaceholder: 'Ваш пароль',
     signInAction: 'Увійти',
+    opportunitiesTitle: 'Що вміє ELLI',
+    opportunitiesBody:
+      'Розмова про те, що турбує, будь-якої миті.\n' +
+      'Пам’ять про попередні розмови, щоб не починати щоразу з нуля.\n' +
+      'Дбайливі підказки в складні хвилини та контакти екстреної допомоги.\n' +
+      'Історія розмов, які можна перейменувати, зберегти або видалити.',
+    feedbackHint: 'Відкриється сторінка зворотного зв’язку',
+    loading: 'Завантаження…',
+    codeIncorrect: 'Код невірний або вже не діє. Спробуйте ще раз.',
+    passwordIncorrect: 'Невірний пароль.',
+    accountNotFound: 'Такої пошти ще немає. Створимо новий акаунт?',
+    accountExists: 'Акаунт із такою поштою вже існує. Увійдіть замість реєстрації.',
+    passwordWeak: 'Пароль занадто простий або короткий. Виберіть надійніший.',
+    emailInvalid: 'Перевірте адресу пошти.',
   },
   ru: {
     greeting: 'Привет, я Elli, твой персональный психолог. Чем могу помочь?',
@@ -163,7 +192,7 @@ const STRINGS: Record<Lang, Strings> = {
     verify: 'Подтвердить',
     authHint: 'Мы отправим код подтверждения на вашу почту.',
     genericError: 'Произошла ошибка. Попробуйте ещё раз.',
-    continueWithGoogle: 'Continue with Google',
+    continueWithGoogle: 'Войти через Google',
     continueWithApple: 'Войти через Apple',
     orSeparator: 'или',
     back: 'Назад',
@@ -178,7 +207,7 @@ const STRINGS: Record<Lang, Strings> = {
     feedbackSubtitle: 'Чтобы улучшить наше качество',
     logOut: 'Выйти',
     knowThyself: 'Познай Себя',
-    continueWithEmail: 'Continue with Email',
+    continueWithEmail: 'Войти через почту',
     deleteTitle: 'Вы уверены, что хотите удалить?',
     deleteHint: 'Если вы удалите чат, ELLI потеряет контекст',
     confirmDelete: 'Да, удалить чат',
@@ -197,6 +226,20 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Пароль',
     passwordPlaceholder: 'Ваш пароль',
     signInAction: 'Войти',
+    opportunitiesTitle: 'Что умеет ELLI',
+    opportunitiesBody:
+      'Разговор о том, что беспокоит, в любой момент.\n' +
+      'Память о прошлых разговорах, чтобы не начинать каждый раз с нуля.\n' +
+      'Бережные подсказки в трудные минуты и контакты экстренной помощи.\n' +
+      'История разговоров, которые можно переименовать, сохранить или удалить.',
+    feedbackHint: 'Откроется страница обратной связи',
+    loading: 'Загрузка…',
+    codeIncorrect: 'Код неверный или уже не действует. Попробуйте ещё раз.',
+    passwordIncorrect: 'Неверный пароль.',
+    accountNotFound: 'Такой почты ещё нет. Создадим новый аккаунт?',
+    accountExists: 'Аккаунт с такой почтой уже существует. Войдите вместо регистрации.',
+    passwordWeak: 'Пароль слишком простой или короткий. Выберите надёжнее.',
+    emailInvalid: 'Проверьте адрес почты.',
   },
   en: {
     greeting: "Hi, I'm Elli, your personal psychologist. How can I help you?",
@@ -255,8 +298,90 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Password',
     passwordPlaceholder: 'Your password',
     signInAction: 'Sign in',
+    opportunitiesTitle: 'What ELLI can do',
+    opportunitiesBody:
+      'A conversation about what troubles you, at any hour.\n' +
+      'Memory of earlier conversations, so you never start from scratch.\n' +
+      'Gentle prompts in hard moments, and emergency contacts.\n' +
+      'A history of conversations you can rename, keep or delete.',
+    feedbackHint: 'Opens the feedback page',
+    loading: 'Loading…',
+    codeIncorrect: 'That code is wrong or has expired. Please try again.',
+    passwordIncorrect: 'Wrong password.',
+    accountNotFound: 'No account for this email yet. Shall we create one?',
+    accountExists: 'An account with this email already exists. Sign in instead.',
+    passwordWeak: 'That password is too short or too common. Pick a stronger one.',
+    emailInvalid: 'Please check the email address.',
   },
 }
 
-export const lang = detectLang()
-export const t: Strings = STRINGS[lang]
+export { STRINGS }
+
+// ---------------------------------------------------------------------------
+// Runtime language, switchable from the profile.
+//
+// The language used to be `export const lang = detectLang()`, resolved once at import:
+// the profile modal could show the choice but changing it did nothing, because every
+// screen had already captured `t`. Now the current language lives in this module and
+// components subscribe to it, so a switch re-renders the whole tree.
+//
+// The choice is persisted; the device locale is only the initial guess.
+// ---------------------------------------------------------------------------
+
+const STORAGE_KEY = 'elli-lang'
+
+let currentLang: Lang = detectLang()
+const listeners = new Set<() => void>()
+
+function emit(): void {
+  for (const listener of listeners) listener()
+}
+
+export function getLang(): Lang {
+  return currentLang
+}
+
+/** Strings for the current language. For class components and non-React modules. */
+export function getStrings(): Strings {
+  return STRINGS[currentLang]
+}
+
+export function isLang(value: unknown): value is Lang {
+  return typeof value === 'string' && SUPPORTED.includes(value as Lang)
+}
+
+/** Switches the language and remembers it. A storage failure must not block the UI. */
+export async function setLang(next: Lang): Promise<void> {
+  if (!isLang(next) || next === currentLang) return
+  currentLang = next
+  emit()
+  try {
+    await AsyncStorage.setItem(STORAGE_KEY, next)
+  } catch {
+    /* the switch still applies for this session */
+  }
+}
+
+/** Loads the stored choice. Called once on startup, before the tree is shown. */
+export async function hydrateLang(): Promise<void> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY)
+    if (isLang(stored) && stored !== currentLang) {
+      currentLang = stored
+      emit()
+    }
+  } catch {
+    /* keep the locale-derived default */
+  }
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+/** Subscribes a component to the current language. */
+export function useLang(): { lang: Lang; t: Strings; setLang: typeof setLang } {
+  const lang = useSyncExternalStore(subscribe, getLang, getLang)
+  return { lang, t: STRINGS[lang], setLang }
+}

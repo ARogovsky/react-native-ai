@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Modal, View, Text, StyleSheet, Pressable, TextInput } from 'react-native'
-import { t } from '../lib/i18n'
+import { useLang } from '../lib/i18n'
 import { colors, layout, radii, spacing, type } from '../design/tokens'
 
 /** Delete confirmation — "EN Delete Chat" frame (300x151, radius 20). */
@@ -13,6 +13,8 @@ export function DeleteChatModal({
   onCancel: () => void
   onConfirm: () => void
 }) {
+  const { t } = useLang()
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.backdrop} onPress={onCancel} />
@@ -42,6 +44,7 @@ export function RenameChatModal({
   onCancel: () => void
   onSave: (title: string) => void
 }) {
+  const { t } = useLang()
   const [value, setValue] = useState(initialValue)
 
   useEffect(() => {

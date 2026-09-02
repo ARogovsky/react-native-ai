@@ -7,13 +7,24 @@ because they never authenticate.
 
 ## How the login is possible without a mailbox
 
-Clerk development instances accept any address containing `+clerk_test` with the fixed
-one-time code `424242`. So the app under test must be built with a **dev** Clerk
-publishable key: that is the `e2e` profile in `eas.json`.
+Clerk accepts any address containing `+clerk_test` with the fixed one-time code `424242`
+while the instance has **test mode** on. `run_devicefarm.py` switches test mode on for the
+run and off again in `finally`, and deletes the throwaway account afterwards.
 
-Consequence: tokens from the dev Clerk instance are rejected by the production API
-(it verifies against the live instance), so this suite asserts only up to the signed-in
-screen. Chat traffic is out of scope here and is covered by the API-side evals.
+The app under test is therefore built against the **live** Clerk instance (the `e2e`
+profile in `eas.json` pins `pk_live_…`). That is what makes the chat testable: the
+production API verifies tokens against the live instance and rejects dev-instance ones.
+`scripts/check-clerk-keys.js` enforces the pairing.
+
+## What the run proves
+
+1. Sign-in works and the signed-in tree mounts (`home-continue` is displayed) — the path
+   that broke in build 8.
+2. A message sent from the chat screen comes back as a real answer: the assistant bubble
+   fills with text and is not the generic error copy.
+3. The turn reached Bedrock — after the device run, `run_devicefarm.py` asks Langfuse for
+   that user's generations and requires one with a model and output tokens. A build where
+   the app renders an answer but nothing is traced is red.
 
 ## Test type
 
