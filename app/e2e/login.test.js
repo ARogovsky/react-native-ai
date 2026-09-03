@@ -78,6 +78,21 @@ async function tap(driver, testId) {
   return el;
 }
 
+/**
+ * Taps a control that only carries an accessibilityLabel (the chat back arrow has no
+ * testID). The label is localised, so every language spelling is tried.
+ */
+async function tapByLabel(driver, labels) {
+  for (const label of labels) {
+    const el = await driver.$(IS_IOS ? `~${label}` : `//*[@content-desc="${label}"]`);
+    if (await el.isDisplayed().catch(() => false)) {
+      await el.click();
+      return;
+    }
+  }
+  throw new Error('none of these labels is on screen: ' + labels.join(', '));
+}
+
 /** Screen text as the platform reports it, used for the language checks. */
 async function pageText(driver) {
   return String(await driver.getPageSource());
@@ -226,13 +241,18 @@ describe('ELLI login on a real device', function () {
 
   // The home screen used to show the bundled placeholder even for accounts with a picture:
   // the avatar is now bound to useUser().imageUrl.
+  //
+  // iOS: the avatar lives inside the `home-profile` Pressable, and an accessible button
+  // hides its subtree from XCUITest — so `home-avatar` simply does not exist there. The
+  // button itself is what can be asserted. Android exposes the image by resource-id.
   it('shows the profile avatar on the home screen', async () => {
-    const avatar = await driver.$(selector('home-avatar'));
+    const testId = IS_IOS ? 'home-profile' : 'home-avatar';
+    const avatar = await driver.$(selector(testId));
     await avatar.waitForDisplayed({ timeout: TIMEOUT });
 
     const size = await avatar.getSize();
     if (!size || size.width < 10 || size.height < 10) {
-      throw new Error('avatar is not rendered: ' + JSON.stringify(size));
+      throw new Error(testId + ' is not rendered: ' + JSON.stringify(size));
     }
   });
 
@@ -267,27 +287,6 @@ describe('ELLI login on a real device', function () {
     // Back to Ukrainian: that is the product language, and the rest of the run reads it.
     await tap(driver, 'profile-language');
     await tap(driver, 'language-uk');
-
-    // Feedback opens https://e-lli.com/contact in the browser, so the app leaves the
-    // foreground. Nothing happening at all is the bug that was reported.
-    await tap(driver, 'profile-feedback');
-    await driver.waitUntil(
-      async () => {
-        const text = await pageText(driver).catch(() => '');
-        return !text.includes('profile-feedback') || text.includes('e-lli.com');
-      },
-      {
-        timeout: TIMEOUT,
-        interval: 1000,
-        timeoutMsg: 'the feedback button did not open the contact page',
-      }
-    );
-
-    await driver.activateApp(
-      IS_IOS
-        ? process.env.APP_BUNDLE_ID || 'com.unkd.elli'
-        : process.env.APP_PACKAGE || 'com.elli.app'
-    );
 
     await tap(driver, 'profile-close');
     const home = await driver.$(selector('home-continue'));
@@ -357,5 +356,28 @@ describe('ELLI login on a real device', function () {
     if (location.x < window.width / 4) {
       throw new Error('history drawer starts at the left edge: x=' + location.x);
     }
+  });
+
+  // Last on purpose: this one hands the screen to the browser (Linking.openURL), and on
+  // iOS the app does not always come back, which would poison every test after it.
+  it('opens the feedback page from the profile', async () => {
+    // The drawer from the previous case is still up, and the profile is reachable from the
+    // home screen only: close the drawer, go back out of the chat, open the profile.
+    await tap(driver, 'menu-new-chat');
+    await tapByLabel(driver, ['Назад', 'Back']);
+    await tap(driver, 'home-profile');
+    await tap(driver, 'profile-feedback');
+
+    await driver.waitUntil(
+      async () => {
+        const text = await pageText(driver).catch(() => '');
+        return text.includes('e-lli.com') && !text.includes('profile-feedback');
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 1000,
+        timeoutMsg: 'the feedback button did not open the contact page',
+      }
+    );
   });
 });
