@@ -333,6 +333,40 @@ const STORAGE_KEY = 'elli-lang'
 let currentLang: Lang = detectLang()
 const listeners = new Set<() => void>()
 
+/**
+ * Strings the API serves from the cabinet (src/lib/remoteCopy.ts). They win over the bundled
+ * ones so a clinician can reword a screen without a store release; anything not overridden
+ * keeps the compiled text, and the merged result is cached per language so `t` stays a stable
+ * object between renders (useSyncExternalStore compares by reference).
+ */
+type RemoteStrings = { [K in keyof Strings]?: Partial<Record<Lang, Strings[K]>> }
+
+let remoteStrings: RemoteStrings = {}
+let mergedCache: Partial<Record<Lang, Strings>> = {}
+
+function stringsFor(lang: Lang): Strings {
+  const cached = mergedCache[lang]
+  if (cached) return cached
+
+  const merged: Strings = { ...STRINGS[lang] }
+  for (const [key, byLang] of Object.entries(remoteStrings)) {
+    const value = byLang?.[lang]
+    if (typeof value === 'string' && value) {
+      ;(merged as unknown as Record<string, string>)[key] = value
+    }
+  }
+
+  mergedCache[lang] = merged
+  return merged
+}
+
+/** Applies remote copy and re-renders every subscriber. */
+export function setRemoteStrings(next: RemoteStrings): void {
+  remoteStrings = next
+  mergedCache = {}
+  emit()
+}
+
 function emit(): void {
   for (const listener of listeners) listener()
 }
@@ -343,7 +377,7 @@ export function getLang(): Lang {
 
 /** Strings for the current language. For class components and non-React modules. */
 export function getStrings(): Strings {
-  return STRINGS[currentLang]
+  return stringsFor(currentLang)
 }
 
 export function isLang(value: unknown): value is Lang {
@@ -383,5 +417,6 @@ function subscribe(listener: () => void): () => void {
 /** Subscribes a component to the current language. */
 export function useLang(): { lang: Lang; t: Strings; setLang: typeof setLang } {
   const lang = useSyncExternalStore(subscribe, getLang, getLang)
-  return { lang, t: STRINGS[lang], setLang }
+  // stringsFor, not STRINGS: remote copy from the cabinet overrides the bundled text.
+  return { lang, t: stringsFor(lang), setLang }
 }

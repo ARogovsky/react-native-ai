@@ -17,6 +17,7 @@ import { tokenCache } from '@clerk/expo/token-cache'
 import { AuthScreen } from './src/auth/AuthScreen'
 import { SignedInApp } from './src/SignedInApp'
 import { getStrings, hydrateLang } from './src/lib/i18n'
+import { hydrateRemoteCopy } from './src/lib/remoteCopy'
 
 LogBox.ignoreLogs(['No native splash screen registered'])
 
@@ -52,6 +53,12 @@ export default function App() {
   // locale-derived default, which is what a first launch gets anyway.
   useEffect(() => {
     void hydrateLang()
+  }, [])
+
+  // Copy a clinician edits in the cabinet, served by GET /api/config. Cached from the last
+  // launch, so this only ever replaces text that is already on screen.
+  useEffect(() => {
+    void hydrateRemoteCopy()
   }, [])
 
   function _setTheme(next: string) {
