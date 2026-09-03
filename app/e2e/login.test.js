@@ -78,6 +78,18 @@ async function tap(driver, testId) {
   return el;
 }
 
+/** Screen text as the platform reports it, used for the language checks. */
+async function pageText(driver) {
+  return String(await driver.getPageSource());
+}
+
+/** Strings that only exist in one language pack (src/lib/i18n.ts). */
+const LANGUAGE_MARKERS = {
+  uk: ['Пізнай Себе', 'Увійти через пошту', 'Я приймаю'],
+  ru: ['Познай Себя', 'Войти через почту', 'Я принимаю'],
+  en: ['Know Thyself', 'Continue with Email', 'I accept the'],
+};
+
 async function type(driver, testId, text) {
   const el = await driver.$(selector(testId));
   await el.waitForDisplayed({ timeout: TIMEOUT });
@@ -152,6 +164,33 @@ describe('ELLI login on a real device', function () {
     }
   })
 
+  // Reported bug: the login screen mixed Ukrainian and English. Every label now comes from
+  // one pack, so seeing markers of two languages on this screen is the regression.
+  it('renders the login screen in a single language', async () => {
+    const start = await driver.$(selector('auth-email-start'));
+    await start.waitForDisplayed({ timeout: TIMEOUT });
+
+    const text = await pageText(driver);
+    const present = Object.entries(LANGUAGE_MARKERS)
+      .map(([lang, markers]) => [lang, markers.filter((m) => text.includes(m))])
+      .filter(([, hits]) => hits.length > 0);
+
+    console.log(
+      'login screen languages:',
+      present.map(([lang, hits]) => lang + '(' + hits.length + ')').join(', ') || 'none'
+    );
+
+    if (present.length === 0) {
+      throw new Error('no known login copy on screen: the layout changed');
+    }
+    if (present.length > 1) {
+      throw new Error(
+        'login screen mixes languages: ' +
+          present.map(([lang, hits]) => lang + ' -> ' + hits.join(' | ')).join('; ')
+      );
+    }
+  });
+
   it('signs in and reaches the signed-in screen', async () => {
     // Login screen is up.
     const start = await driver.$(selector('auth-email-start'));
@@ -185,6 +224,76 @@ describe('ELLI login on a real device', function () {
     }
   });
 
+  // The home screen used to show the bundled placeholder even for accounts with a picture:
+  // the avatar is now bound to useUser().imageUrl.
+  it('shows the profile avatar on the home screen', async () => {
+    const avatar = await driver.$(selector('home-avatar'));
+    await avatar.waitForDisplayed({ timeout: TIMEOUT });
+
+    const size = await avatar.getSize();
+    if (!size || size.width < 10 || size.height < 10) {
+      throw new Error('avatar is not rendered: ' + JSON.stringify(size));
+    }
+  });
+
+  // Three reported dead controls on the profile screen: "opportunities", "leave feedback"
+  // and the language modal that showed the choice but never applied it.
+  it('profile screen: opportunities, language switch and feedback all react', async () => {
+    await tap(driver, 'home-profile');
+    await tap(driver, 'profile-opportunities');
+
+    // The info modal is the whole feature: no route existed for this button before.
+    const close = await driver.$(selector('info-close'));
+    await close.waitForDisplayed({ timeout: TIMEOUT });
+    await close.click();
+
+    // Switching must repaint the tree, not just tick a row.
+    await tap(driver, 'profile-language');
+    await tap(driver, 'language-uk');
+    await driver.waitUntil(async () => (await pageText(driver)).includes('Можливості'), {
+      timeout: TIMEOUT,
+      interval: 500,
+      timeoutMsg: 'the profile stayed in the old language after picking Ukrainian',
+    });
+
+    await tap(driver, 'profile-language');
+    await tap(driver, 'language-en');
+    await driver.waitUntil(async () => (await pageText(driver)).includes('Opportunities'), {
+      timeout: TIMEOUT,
+      interval: 500,
+      timeoutMsg: 'the profile stayed in the old language after picking English',
+    });
+
+    // Back to Ukrainian: that is the product language, and the rest of the run reads it.
+    await tap(driver, 'profile-language');
+    await tap(driver, 'language-uk');
+
+    // Feedback opens https://e-lli.com/contact in the browser, so the app leaves the
+    // foreground. Nothing happening at all is the bug that was reported.
+    await tap(driver, 'profile-feedback');
+    await driver.waitUntil(
+      async () => {
+        const text = await pageText(driver).catch(() => '');
+        return !text.includes('profile-feedback') || text.includes('e-lli.com');
+      },
+      {
+        timeout: TIMEOUT,
+        interval: 1000,
+        timeoutMsg: 'the feedback button did not open the contact page',
+      }
+    );
+
+    await driver.activateApp(
+      IS_IOS
+        ? process.env.APP_BUNDLE_ID || 'com.unkd.elli'
+        : process.env.APP_PACKAGE || 'com.elli.app'
+    );
+
+    await tap(driver, 'profile-close');
+    const home = await driver.$(selector('home-continue'));
+    await home.waitForDisplayed({ timeout: TIMEOUT });
+  });
+
   // Login alone is not the product. This is the case the owner cares about, and it is the
   // one that broke unnoticed: the API was reachable, but the app showed the error bubble
   // because the running task held a database password that had been rotated away.
@@ -213,6 +322,40 @@ describe('ELLI login on a real device', function () {
       if (answer.includes(marker)) {
         throw new Error('chat returned the error bubble: ' + answer.slice(0, 200));
       }
+    }
+  });
+
+  // The history drawer belongs on the right: it slides out of the header button in the
+  // top-right corner. It used to sit against the left edge.
+  it('opens the history drawer on the right edge', async () => {
+    await tap(driver, 'header-menu');
+
+    // A control inside the panel: its right edge tracks the panel's right edge
+    // (ChatMenu footer keeps a 24pt margin), so a left-aligned drawer fails this.
+    const newChat = await driver.$(selector('menu-new-chat'));
+    await newChat.waitForDisplayed({ timeout: TIMEOUT });
+
+    const window = await driver
+      .getWindowSize()
+      .catch(() => driver.getWindowRect());
+    const location = await newChat.getLocation();
+    const size = await newChat.getSize();
+    const rightEdge = location.x + size.width;
+
+    console.log(
+      'drawer content: x=' + location.x + ' right=' + rightEdge + ' screen=' + window.width
+    );
+
+    if (rightEdge < window.width - 60) {
+      throw new Error(
+        'history drawer is not right-aligned: content right edge ' +
+          rightEdge +
+          ' of screen width ' +
+          window.width
+      );
+    }
+    if (location.x < window.width / 4) {
+      throw new Error('history drawer starts at the left edge: x=' + location.x);
     }
   });
 });
