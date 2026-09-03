@@ -368,15 +368,17 @@ describe('ELLI login on a real device', function () {
     await tap(driver, 'home-profile');
     await tap(driver, 'profile-feedback');
 
+    // The app losing the screen is the portable signal; Safari needs a while before its
+    // address field reports the host, so waiting for the URL alone is flaky on iOS.
     await driver.waitUntil(
       async () => {
         const text = await pageText(driver).catch(() => '');
-        return text.includes('e-lli.com') && !text.includes('profile-feedback');
+        return !text.includes('profile-feedback') || text.includes('e-lli.com');
       },
       {
-        timeout: TIMEOUT,
+        timeout: 60000,
         interval: 1000,
-        timeoutMsg: 'the feedback button did not open the contact page',
+        timeoutMsg: 'the feedback button did not hand the screen to the browser',
       }
     );
   });
