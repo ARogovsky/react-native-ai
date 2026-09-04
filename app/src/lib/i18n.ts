@@ -82,8 +82,6 @@ interface Strings {
   passwordPlaceholder: string
   signInAction: string
   // Profile actions
-  opportunitiesTitle: string
-  opportunitiesBody: string
   feedbackHint: string
   // Shown by App.tsx before Clerk has loaded
   loading: string
@@ -154,12 +152,6 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Пароль',
     passwordPlaceholder: 'Ваш пароль',
     signInAction: 'Увійти',
-    opportunitiesTitle: 'Що вміє ELLI',
-    opportunitiesBody:
-      'Розмова про те, що турбує, будь-якої миті.\n' +
-      'Пам’ять про попередні розмови, щоб не починати щоразу з нуля.\n' +
-      'Дбайливі підказки в складні хвилини та контакти екстреної допомоги.\n' +
-      'Історія розмов, які можна перейменувати, зберегти або видалити.',
     feedbackHint: 'Відкриється сторінка зворотного зв’язку',
     loading: 'Завантаження…',
     codeIncorrect: 'Код невірний або вже не діє. Спробуйте ще раз.',
@@ -226,12 +218,6 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Пароль',
     passwordPlaceholder: 'Ваш пароль',
     signInAction: 'Войти',
-    opportunitiesTitle: 'Что умеет ELLI',
-    opportunitiesBody:
-      'Разговор о том, что беспокоит, в любой момент.\n' +
-      'Память о прошлых разговорах, чтобы не начинать каждый раз с нуля.\n' +
-      'Бережные подсказки в трудные минуты и контакты экстренной помощи.\n' +
-      'История разговоров, которые можно переименовать, сохранить или удалить.',
     feedbackHint: 'Откроется страница обратной связи',
     loading: 'Загрузка…',
     codeIncorrect: 'Код неверный или уже не действует. Попробуйте ещё раз.',
@@ -298,12 +284,6 @@ const STRINGS: Record<Lang, Strings> = {
     passwordLabel: 'Password',
     passwordPlaceholder: 'Your password',
     signInAction: 'Sign in',
-    opportunitiesTitle: 'What ELLI can do',
-    opportunitiesBody:
-      'A conversation about what troubles you, at any hour.\n' +
-      'Memory of earlier conversations, so you never start from scratch.\n' +
-      'Gentle prompts in hard moments, and emergency contacts.\n' +
-      'A history of conversations you can rename, keep or delete.',
     feedbackHint: 'Opens the feedback page',
     loading: 'Loading…',
     codeIncorrect: 'That code is wrong or has expired. Please try again.',

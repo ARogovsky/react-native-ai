@@ -19,9 +19,9 @@ import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
 import { useChat, ChatMsg } from '../ChatProvider'
 import { useLang } from '../lib/i18n'
-import { colors, layout, radii, spacing, type } from '../design/tokens'
+import { colors, layout, radii, shadows, spacing, type } from '../design/tokens'
 
-/** Chat screen — "EN Chat" frame of the handoff. */
+/** Chat screen — `chat.*` in the layout spec of the handoff. */
 export function Chat() {
   const { messages, send, loading, openMenu } = useChat()
   const navigation = useNavigation<any>()
@@ -96,7 +96,8 @@ export function Chat() {
               value={input}
               onChangeText={setInput}
               placeholder={t.inputPlaceholder}
-              placeholderTextColor={colors.muted}
+              // Colors sheet: the input placeholder is the secondary text colour.
+              placeholderTextColor={colors.textSecondary}
               multiline
               onSubmitEditing={onSend}
             />
@@ -189,13 +190,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: colors.barOverlay,
   },
+  // Effects sheet: glassmorphism — rgba(255,255,255,0.8) fill, 1px light edge,
+  // 2px 2px 10px rgba(0,0,0,0.05). Real backdrop blur needs a native BlurView; the fill
+  // plus edge is what reads on the cream background.
   roundButton: {
     width: layout.topButton,
     height: layout.topButton,
     borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    boxShadow: shadows.glassButton,
   },
   list: { flex: 1 },
   listContent: { paddingVertical: spacing.md, rowGap: spacing.lg },
@@ -214,28 +221,34 @@ const styles = StyleSheet.create({
   bubbleUser: { backgroundColor: 'transparent' },
   messageText: { ...type.message, color: colors.text },
   errorText: { color: colors.danger },
+  // Spec: padding 15 T / 25 R / 15 B / 25 L.
   thinking: {
     ...type.message,
     color: colors.muted,
     paddingHorizontal: spacing.lg + spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
   },
+  // Spec: input bar area — padding 0 T / 10 R / 30 B / 10 L, top corners 39.
   bottomBar: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     backgroundColor: colors.barOverlay,
+    borderTopLeftRadius: layout.chatFooterRadius,
+    borderTopRightRadius: layout.chatFooterRadius,
   },
+  // Glassmorphism, the stronger variant: 1.5px edge and 0 10px 25px rgba(0,0,0,0.12).
   inputPill: {
     minHeight: layout.inputHeight,
     borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.surface,
-    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.glassBarBorder,
+    backgroundColor: colors.glass,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     flexDirection: 'row',
     alignItems: 'flex-end',
     columnGap: spacing.lg,
+    boxShadow: shadows.glassBar,
   },
   input: {
     flex: 1,

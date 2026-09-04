@@ -258,14 +258,22 @@ describe('ELLI login on a real device', function () {
 
   // Three reported dead controls on the profile screen: "opportunities", "leave feedback"
   // and the language modal that showed the choice but never applied it.
+  //
+  // The handoff's Transitions sheet turned Opportunities into an external browser hand-off
+  // (e-lli.com / e-lli.com/en), so it is no longer tapped here — a browser landing mid-run
+  // would swallow the language assertions below. It is only checked to be on screen and
+  // hittable; the browser hand-off itself is covered by the feedback case at the end.
   it('profile screen: opportunities, language switch and feedback all react', async () => {
     await tap(driver, 'home-profile');
-    await tap(driver, 'profile-opportunities');
 
-    // The info modal is the whole feature: no route existed for this button before.
-    const close = await driver.$(selector('info-close'));
-    await close.waitForDisplayed({ timeout: TIMEOUT });
-    await close.click();
+    const opportunities = await driver.$(selector('profile-opportunities'));
+    await opportunities.waitForDisplayed({ timeout: TIMEOUT });
+    const opportunitiesSize = await opportunities.getSize();
+    if (!opportunitiesSize || opportunitiesSize.height < 10) {
+      throw new Error(
+        'profile-opportunities is not hittable: ' + JSON.stringify(opportunitiesSize)
+      );
+    }
 
     // Switching must repaint the tree, not just tick a row.
     await tap(driver, 'profile-language');
@@ -370,10 +378,16 @@ describe('ELLI login on a real device', function () {
 
     // The app losing the screen is the portable signal; Safari needs a while before its
     // address field reports the host, so waiting for the URL alone is flaky on iOS.
+    // Per the handoff the destination is now a Google form (forms.gle/... per language),
+    // so the host markers cover both that and the older e-lli.com contact page.
     await driver.waitUntil(
       async () => {
         const text = await pageText(driver).catch(() => '');
-        return !text.includes('profile-feedback') || text.includes('e-lli.com');
+        const handedOff = !text.includes('profile-feedback');
+        const host = ['e-lli.com', 'forms.gle', 'docs.google.com', 'google.com'].some((m) =>
+          text.includes(m)
+        );
+        return handedOff || host;
       },
       {
         timeout: 60000,

@@ -1,10 +1,11 @@
 import { Text, StyleSheet, ActivityIndicator, Pressable, View } from 'react-native'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { colors, radii, spacing, type } from '../design/tokens'
+import { colors, layout, radii, shadows, spacing, type } from '../design/tokens'
 
 /**
- * Login button — "Button Login/Registration w Google/Email" symbol: 360x50, radius 30,
- * #FFFBF7 fill, icon inset 22, label Inter Semi Bold 18 in #723710.
+ * Login button — `login.auth_buttons.*` in the layout spec: 50 tall, fills its group,
+ * radius 30, padding 6/22, gap 10, #FFFBF7 fill, label Inter Semi Bold 18 in #723710.
+ * The Effects sheet gives it an inner glow (inset 2px -1px 9px #F8DECD).
  */
 export function AuthButton({
   icon,
@@ -44,13 +45,15 @@ export function AuthButton({
 
 const styles = StyleSheet.create({
   button: {
-    height: 50,
+    height: layout.loginButtonHeight,
     borderRadius: radii.pill,
     backgroundColor: colors.background,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 22,
+    paddingVertical: 6,
     columnGap: spacing.md,
+    boxShadow: shadows.loginButton,
   },
   disabled: { opacity: 0.6 },
   icon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },

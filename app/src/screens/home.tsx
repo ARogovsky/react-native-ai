@@ -7,9 +7,10 @@ import { useLang } from '../lib/i18n'
 import { colors, images, layout, radii, spacing, type } from '../design/tokens'
 
 /**
- * Main screen — "EN Main screen" frame: photo background under a 60% scrim, the
- * CONTINUE call to action, and a rounded bottom panel with the agent name, the last
- * topic and the profile entry point.
+ * Main screen — `main.*` in the layout spec: photo background under a #1A1A1A 36%
+ * overlay, the CONTINUE call to action, and a 120-tall bottom bar (radius 35 on the top
+ * corners, 20 of padding, 20 gap) with the agent name, the last topic and the profile
+ * entry point.
  */
 export function Home() {
   const navigation = useNavigation<any>()
@@ -40,7 +41,16 @@ export function Home() {
         onPress={onContinue}
         style={styles.continueArea}
       >
-        <Text style={styles.continueText}>{t.continueConversation}</Text>
+        {/* Spec (Transitions): CONTINUE / ПРОДОВЖИТИ must stay on ONE line — on a narrow
+            screen the glyphs shrink instead of wrapping. */}
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.6}
+          style={styles.continueText}
+        >
+          {t.continueConversation}
+        </Text>
       </Pressable>
 
       <View style={[styles.panel, { paddingBottom: Math.max(insets.bottom, spacing.xl) }]}>
@@ -68,7 +78,15 @@ export function Home() {
             source={user?.imageUrl ? { uri: user.imageUrl } : images.avatarPlaceholder}
             style={styles.avatar}
           />
-          <Text style={styles.profileLabel}>{t.profile}</Text>
+          {/* Same rule as CONTINUE: one line, shrink instead of wrapping. */}
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.7}
+            style={styles.profileLabel}
+          >
+            {t.profile}
+          </Text>
         </Pressable>
       </View>
     </ImageBackground>
@@ -96,7 +114,8 @@ const styles = StyleSheet.create({
   topicRow: { flexDirection: 'row', alignItems: 'flex-end', columnGap: spacing.xs },
   topicLabel: { ...type.message, color: colors.text },
   topicValue: { ...type.message, color: colors.text, flex: 1 },
-  profileButton: { width: layout.sendButton, alignItems: 'center', rowGap: 1 },
+  // Spec: profile button is a vertical auto-layout with a 2 gap under the 40 avatar.
+  profileButton: { width: layout.sendButton, alignItems: 'center', rowGap: 2 },
   avatar: {
     width: layout.sendButton,
     height: layout.sendButton,

@@ -63,14 +63,18 @@ export function ChatMenu() {
               return (
                 <View key={session.id} style={styles.row}>
                   <Pressable
+                    testID="menu-session-favorite"
                     accessibilityRole="button"
+                    accessibilityState={{ selected: fav }}
                     onPress={() => toggleFavorite(session.id)}
                     hitSlop={HIT}
                   >
+                    {/* Colors sheet: the bookmark keeps #9C908A in both states; only the
+                        filled/outline shape says whether the chat is a favourite. */}
                     <Ionicons
                       name={fav ? 'bookmark' : 'bookmark-outline'}
                       size={layout.drawerIcon}
-                      color={colors.text}
+                      color={colors.bookmark}
                     />
                   </Pressable>
 
@@ -88,7 +92,9 @@ export function ChatMenu() {
                   </Pressable>
 
                   <Pressable
+                    testID="menu-session-rename"
                     accessibilityRole="button"
+                    accessibilityLabel={t.renameTitle}
                     onPress={() => setRenaming(session)}
                     hitSlop={HIT}
                   >
@@ -96,7 +102,9 @@ export function ChatMenu() {
                   </Pressable>
 
                   <Pressable
+                    testID="menu-session-delete"
                     accessibilityRole="button"
+                    accessibilityLabel={t.deleteTitle}
                     onPress={() => setDeleting(session)}
                     hitSlop={HIT}
                   >
@@ -138,7 +146,9 @@ export function ChatMenu() {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.backdrop },
+  // Unlike the other modals this one LIGHTENS the screen behind it (#FFFDFB @40%,
+  // Colors sheet: "History Modal backdrop"), which is why it does not reuse `backdrop`.
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.drawerBackdrop },
   // The drawer hangs off the right edge: it is opened from the header button in the
   // top-right corner, so it slides in from the same side.
   panel: {

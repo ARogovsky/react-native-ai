@@ -1,7 +1,7 @@
 import { Modal, View, Text, StyleSheet, Pressable } from 'react-native'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useLang, type Lang } from '../lib/i18n'
-import { colors, layout, radii, spacing, type } from '../design/tokens'
+import { colors, layout, radii, shadows, spacing, type } from '../design/tokens'
 
 /**
  * Language selection modal — "EN Language selection" frame: 300 wide, radius 20, one
@@ -40,8 +40,9 @@ export function LanguageModal({ visible, onClose }: { visible: boolean; onClose:
               <Text style={styles.native}>{item.native}</Text>
               <Text style={styles.english}>{item.english}</Text>
             </View>
+            {/* Spec: the 24 checkmark appears only on the language in use. */}
             {item.code === lang && (
-              <Ionicons name="checkmark" size={20} color={colors.text} />
+              <Ionicons name="checkmark" size={layout.rowIcon} color={colors.text} />
             )}
           </Pressable>
         ))}
@@ -52,6 +53,7 @@ export function LanguageModal({ visible, onClose }: { visible: boolean; onClose:
 
 const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.backdrop },
+  // Spec: 300 wide, radius 20, padding 15, gap 10 between rows, modal drop shadow.
   card: {
     position: 'absolute',
     alignSelf: 'center',
@@ -60,6 +62,8 @@ const styles = StyleSheet.create({
     borderRadius: radii.modal,
     backgroundColor: colors.background,
     padding: spacing.lg,
+    rowGap: spacing.md,
+    boxShadow: shadows.modalCard,
   },
   row: {
     height: layout.profileRowHeight,

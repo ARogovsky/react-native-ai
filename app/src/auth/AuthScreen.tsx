@@ -15,7 +15,7 @@ import { getStrings, useLang } from '../lib/i18n'
 import { SocialButtons } from './SocialButtons'
 import { AuthButton } from './AuthButton'
 import { LegalConsent } from './LegalConsent'
-import { colors, images, radii, spacing, type } from '../design/tokens'
+import { colors, images, layout, radii, spacing, type } from '../design/tokens'
 
 // Avoids depending on a specific error-guard export across Clerk versions.
 function clerkErrorList(e: unknown): Array<{ code?: string; message?: string; longMessage?: string }> {
@@ -372,14 +372,22 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.xxl,
-    rowGap: 60,
+    // Spec: the login root is a vertical auto-layout with a 100 gap between the logo
+    // block and the buttons block, both padded 30 on the sides.
+    rowGap: layout.loginGap,
   },
   brand: { alignItems: 'center', rowGap: spacing.lg },
   logo: { width: 242, height: 65 },
   tagline: { ...type.tagline, color: colors.brand, textAlign: 'center' },
-  actions: { rowGap: spacing.lg },
+  // The buttons group stops growing at 500 so it stays a column on a tablet.
+  actions: {
+    rowGap: spacing.lg,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: layout.loginGroupMaxWidth,
+  },
   inputWrap: {
     height: 50,
     borderRadius: radii.pill,

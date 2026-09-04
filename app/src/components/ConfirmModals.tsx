@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Modal, View, Text, StyleSheet, Pressable, TextInput } from 'react-native'
 import { useLang } from '../lib/i18n'
-import { colors, layout, radii, spacing, type } from '../design/tokens'
+import { colors, layout, radii, shadows, spacing, type } from '../design/tokens'
 
-/** Delete confirmation — "EN Delete Chat" frame (300x151, radius 20). */
+/** Delete confirmation — `delete_modal.*` in the layout spec (300 wide, radius 20). */
 export function DeleteChatModal({
   visible,
   onCancel,
@@ -24,8 +24,19 @@ export function DeleteChatModal({
           <Text style={styles.hint}>{t.deleteHint}</Text>
         </View>
         <View style={styles.stackedButtons}>
-          <ModalButton testID="delete-confirm" label={t.confirmDelete} onPress={onConfirm} danger />
-          <ModalButton testID="delete-cancel" label={t.declineDelete} onPress={onCancel} />
+          <ModalButton
+            testID="delete-confirm"
+            label={t.confirmDelete}
+            onPress={onConfirm}
+            corner="top"
+            danger
+          />
+          <ModalButton
+            testID="delete-cancel"
+            label={t.declineDelete}
+            onPress={onCancel}
+            corner="bottom"
+          />
         </View>
       </View>
     </Modal>
@@ -63,16 +74,24 @@ export function RenameChatModal({
             value={value}
             onChangeText={setValue}
             placeholder={t.renamePlaceholder}
-            placeholderTextColor={colors.muted}
+            // Colors sheet: the "Conversation name" text is secondary.
+            placeholderTextColor={colors.textSecondary}
             autoFocus
           />
         </View>
         <View style={styles.inlineButtons}>
-          <ModalButton testID="rename-cancel" label={t.cancel} onPress={onCancel} inline />
+          <ModalButton
+            testID="rename-cancel"
+            label={t.cancel}
+            onPress={onCancel}
+            corner="left"
+            inline
+          />
           <ModalButton
             testID="rename-save"
             label={t.ok}
             onPress={() => onSave(value.trim())}
+            corner="right"
             inline
           />
         </View>
@@ -81,25 +100,35 @@ export function RenameChatModal({
   )
 }
 
+/** `corner` says which end of the pair this button is, so only outer corners round. */
 function ModalButton({
   label,
   onPress,
   danger,
   inline,
+  corner,
   testID,
 }: {
   label: string
   onPress: () => void
   danger?: boolean
   inline?: boolean
+  corner: 'top' | 'bottom' | 'left' | 'right'
   testID?: string
 }) {
+  const cornerStyle = {
+    top: styles.buttonStackedTop,
+    bottom: styles.buttonStackedBottom,
+    left: styles.buttonInlineLeft,
+    right: styles.buttonInlineRight,
+  }[corner]
+
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.button, inline && styles.buttonInline]}
+      style={[styles.button, cornerStyle, inline && styles.buttonInline]}
     >
       <Text style={[styles.buttonLabel, danger && styles.buttonLabelDanger]}>{label}</Text>
     </Pressable>
@@ -108,6 +137,8 @@ function ModalButton({
 
 const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.backdrop },
+  // Spec: 300 wide card centred on the screen, radius 20, padding 15, gap 15, and the
+  // modal drop shadow 0 4px 4px rgba(26,26,26,0.28).
   card: {
     position: 'absolute',
     alignSelf: 'center',
@@ -117,21 +148,41 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     padding: spacing.lg,
     rowGap: spacing.lg,
+    boxShadow: shadows.modalCard,
   },
   textBlock: { rowGap: spacing.xs, alignItems: 'center' },
   title: { ...type.bodySmall, color: colors.textStrong, textAlign: 'center' },
-  hint: { ...type.caption, color: colors.textStrong, textAlign: 'center', letterSpacing: -0.12 },
+  // Colors sheet: the delete body line is secondary text, not the strong colour.
+  hint: { ...type.caption, color: colors.textSecondary, textAlign: 'center', letterSpacing: -0.12 },
   stackedButtons: { alignItems: 'stretch' },
   inlineButtons: { flexDirection: 'row', alignItems: 'center' },
   button: {
     height: layout.modalButtonHeight,
-    borderRadius: radii.control,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.bubbleAgent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
+    boxShadow: shadows.button,
+  },
+  // The pair reads as one rounded block: only the outer corners are round (spec gives
+  // 15/15/0/0 on top and 0/0/15/15 below for delete, left/right for rename).
+  buttonStackedTop: {
+    borderTopLeftRadius: radii.control,
+    borderTopRightRadius: radii.control,
+  },
+  buttonStackedBottom: {
+    borderBottomLeftRadius: radii.control,
+    borderBottomRightRadius: radii.control,
+  },
+  buttonInlineLeft: {
+    borderTopLeftRadius: radii.control,
+    borderBottomLeftRadius: radii.control,
+  },
+  buttonInlineRight: {
+    borderTopRightRadius: radii.control,
+    borderBottomRightRadius: radii.control,
   },
   buttonInline: { flex: 1 },
   buttonLabel: { ...type.bodySmall, color: colors.textStrong, textAlign: 'center' },

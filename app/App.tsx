@@ -16,6 +16,7 @@ import { ClerkProvider, ClerkLoaded, ClerkLoading, Show } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { AuthScreen } from './src/auth/AuthScreen'
 import { SignedInApp } from './src/SignedInApp'
+import { ConnectivityGate } from './src/screens/no-internet'
 import { getStrings, hydrateLang } from './src/lib/i18n'
 import { hydrateRemoteCopy } from './src/lib/remoteCopy'
 
@@ -78,20 +79,25 @@ export default function App() {
         <ThemeContext.Provider
           value={{ theme: getTheme(theme), themeName: theme, setTheme: _setTheme }}
         >
-          <ClerkLoading>
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-              <ActivityIndicator />
-              <Text style={{ marginTop: 12, color: '#666' }}>{getStrings().loading}</Text>
-            </View>
-          </ClerkLoading>
-          <ClerkLoaded>
-            <Show when="signed-out">
-              <AuthScreen />
-            </Show>
-            <Show when="signed-in">
-              <SignedInApp />
-            </Show>
-          </ClerkLoaded>
+          {/* The handoff's "No internet connection" frame covers ANY screen and clears
+              itself once the link is back, so the gate wraps both auth states. It adds no
+              provider and reads no safe-area insets — see src/screens/no-internet.tsx. */}
+          <ConnectivityGate>
+            <ClerkLoading>
+              <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+                <ActivityIndicator />
+                <Text style={{ marginTop: 12, color: '#666' }}>{getStrings().loading}</Text>
+              </View>
+            </ClerkLoading>
+            <ClerkLoaded>
+              <Show when="signed-out">
+                <AuthScreen />
+              </Show>
+              <Show when="signed-in">
+                <SignedInApp />
+              </Show>
+            </ClerkLoaded>
+          </ConnectivityGate>
         </ThemeContext.Provider>
       </GestureHandlerRootView>
     </ClerkProvider>
