@@ -114,4 +114,29 @@ describe('auth screen', () => {
     )
     await waitFor(() => expect(mockSetActiveSignIn).toHaveBeenCalledWith({ session: 'sess_1' }))
   })
+
+  /**
+   * The handoff's 100 gap is measured on an 844-tall frame. Applied literally on a shorter
+   * device it pushed the email field under the keyboard and the Device Farm run could not
+   * reach `auth-email` at all (run 1c2b2201). The gap must scale with the frame instead.
+   */
+  it('shrinks the root gap on frames shorter than the design', () => {
+    const { Dimensions, ScrollView } = require('react-native')
+    const view = render(<AuthScreen />)
+
+    const scroll = view.UNSAFE_getByType(ScrollView)
+    const gaps = [scroll.props.contentContainerStyle]
+      .flat(2)
+      .filter(Boolean)
+      .map((style: any) => style.rowGap)
+      .filter((gap: unknown) => typeof gap === 'number')
+
+    expect(gaps.length).toBeGreaterThan(0)
+    const applied = gaps[gaps.length - 1]
+    if (Dimensions.get('window').height >= 844) {
+      expect(applied).toBe(100)
+    } else {
+      expect(applied).toBeLessThan(100)
+    }
+  })
 })

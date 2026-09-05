@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
 import { getStrings, useLang } from '../lib/i18n'
@@ -56,8 +57,26 @@ export function AuthScreen() {
   const [mode, setMode] = useState<'signUp' | 'signIn'>('signIn')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const scrollRef = useRef<ScrollView | null>(null)
+  const { height: windowHeight } = useWindowDimensions()
 
   const ready = signUpLoaded && signInLoaded
+
+  /**
+   * The spec frame is 390x844 and the 100 gap between the logo block and the buttons is
+   * measured on that height. A 780pt-tall device with the keyboard up has no room for it:
+   * on Device Farm the email field landed under the keyboard and the run could not reach it
+   * (run 1c2b2201, failure screenshot). So the gap keeps the spec value only on frames at
+   * least as tall as the design, and every form step scrolls its field into view.
+   */
+  const rootGap = windowHeight >= 844 ? layout.loginGap : spacing.xxl + spacing.xl
+
+  useEffect(() => {
+    if (step === 'choose') return
+    // Shortly after the field mounts, so the keyboard height is already applied.
+    const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150)
+    return () => clearTimeout(id)
+  }, [step])
 
   function requireLegal(): boolean {
     if (legalAccepted) return true
@@ -174,7 +193,8 @@ export function AuthScreen() {
       style={styles.screen}
     >
       <ScrollView
-        contentContainerStyle={styles.content}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { rowGap: rootGap }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -374,9 +394,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.xxl,
     paddingVertical: spacing.xxl,
-    // Spec: the login root is a vertical auto-layout with a 100 gap between the logo
-    // block and the buttons block, both padded 30 on the sides.
-    rowGap: layout.loginGap,
+    // Spec: the login root is a vertical auto-layout with a 100 gap between the logo block
+    // and the buttons block, both padded 30 on the sides. The gap is applied inline
+    // (`rootGap`) because it must shrink on frames shorter than the 844 design.
   },
   brand: { alignItems: 'center', rowGap: spacing.lg },
   logo: { width: 242, height: 65 },
