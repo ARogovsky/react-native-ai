@@ -14,7 +14,12 @@ export function Main() {
   return (
     <Stack.Navigator initialRouteName="Home" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Home" component={Home} />
-      <Stack.Screen name="Chat" component={Chat} />
+      {/* ANIM-01 / ANIM-02: Main <-> Chat dissolve over 300 ms in both directions. */}
+      <Stack.Screen
+        name="Chat"
+        component={Chat}
+        options={{ animation: 'fade', animationDuration: 300 }}
+      />
       <Stack.Screen
         name="Profile"
         component={Profile}

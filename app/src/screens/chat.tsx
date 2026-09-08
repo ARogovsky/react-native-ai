@@ -19,6 +19,7 @@ import * as Clipboard from 'expo-clipboard'
 import { useActionSheet } from '@expo/react-native-action-sheet'
 import { useChat, ChatMsg } from '../ChatProvider'
 import { useLang } from '../lib/i18n'
+import { SendIcon } from '../components/SendIcon'
 import { colors, layout, radii, shadows, spacing, type } from '../design/tokens'
 
 /** Chat screen — `chat.*` in the layout spec of the handoff. */
@@ -30,12 +31,27 @@ export function Chat() {
   const { t } = useLang()
 
   const [input, setInput] = useState('')
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const scrollViewRef = useRef<ScrollView | null>(null)
 
   useEffect(() => {
     const id = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50)
     return () => clearTimeout(id)
   }, [messages, loading])
+
+  // UX-01: when the keyboard appears the list must end up above it, not behind it.
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const shown = Keyboard.addListener(showEvent, () => {
+      setKeyboardOpen(true)
+      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50)
+    })
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
+    return () => {
+      shown.remove()
+      hidden.remove()
+    }
+  }, [])
 
   async function onSend() {
     const prompt = input.trim()
@@ -60,7 +76,13 @@ export function Chat() {
   const awaitingFirstToken = loading && last?.role === 'assistant' && !last.content
 
   return (
-    <View style={styles.screen}>
+    // UX-01: the keyboard used to cover the last messages. The WHOLE screen now avoids the
+    // keyboard (not just the input bar), so the message list shrinks instead of being
+    // overlapped, and the list is pinned to its end whenever the keyboard opens.
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, layout.topBarPaddingTop) }]}>
         <RoundButton
           icon="chevron-back"
@@ -87,8 +109,18 @@ export function Chat() {
         )}
       </ScrollView>
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, layout.bottomBarPaddingBottom) }]}>
+      <View
+        style={[
+          styles.bottomBar,
+          {
+            // With the keyboard up the safe-area inset is consumed by the keyboard itself,
+            // so keeping the full 30 there would push the pill needlessly high.
+            paddingBottom: keyboardOpen
+              ? spacing.md
+              : Math.max(insets.bottom, layout.bottomBarPaddingBottom),
+          },
+        ]}
+      >
           <View style={styles.inputPill}>
             <TextInput
               testID="chat-input"
@@ -108,12 +140,12 @@ export function Chat() {
               onPress={onSend}
               style={styles.sendButton}
             >
-              <Ionicons name="leaf" size={22} color={colors.brand} />
+              {/* UI-02: the logo IS the button — no peach circle, no leaf glyph. */}
+              <SendIcon />
             </Pressable>
-          </View>
         </View>
-      </KeyboardAvoidingView>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -246,24 +278,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    // UI-01: centre the field and the send button in the pill instead of hanging them from
+    // its bottom edge, which is what pushed the text down.
+    alignItems: 'center',
     columnGap: spacing.lg,
     boxShadow: shadows.glassBar,
   },
+  // UI-01: the text sat low in the field. No asymmetric vertical padding, Android's extra
+  // font padding off, and the glyphs centred in the row.
   input: {
     flex: 1,
     ...type.message,
     color: colors.text,
     maxHeight: 120,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
+  // UI-02: 40x40, the mark fills the button, no background and no radius to show.
   sendButton: {
     width: layout.sendButton,
     height: layout.sendButton,
-    borderRadius: radii.pill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.bubbleAgent,
   },
 })

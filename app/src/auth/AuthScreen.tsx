@@ -417,7 +417,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     justifyContent: 'center',
   },
-  input: { ...type.body, color: colors.text, padding: 0 },
+  // UI-01: the value used to sit low in the pill on Android.
+  input: {
+    ...type.body,
+    color: colors.text,
+    padding: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
   backLink: { alignSelf: 'center', paddingVertical: spacing.md },
   backLinkText: { ...type.bodySmall, color: colors.mutedStrong },
   error: { ...type.bodySmall, color: colors.danger, textAlign: 'center' },

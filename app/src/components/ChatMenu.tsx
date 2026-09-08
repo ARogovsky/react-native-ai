@@ -1,5 +1,14 @@
-import { useMemo, useState } from 'react'
-import { Modal, View, Text, StyleSheet, ScrollView, Pressable } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Animated,
+  Easing,
+  Modal,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { useChat } from '../ChatProvider'
@@ -32,6 +41,17 @@ export function ChatMenu() {
   const [renaming, setRenaming] = useState<ChatSession | null>(null)
   const [deleting, setDeleting] = useState<ChatSession | null>(null)
 
+  // ANIM-03: move in from the right, ease in, 300 ms. Starts fully off-screen to the right.
+  const slide = useRef(new Animated.Value(layout.drawerWidth)).current
+  useEffect(() => {
+    Animated.timing(slide, {
+      toValue: menuOpen ? 0 : layout.drawerWidth,
+      duration: 300,
+      easing: Easing.in(Easing.ease),
+      useNativeDriver: true,
+    }).start()
+  }, [menuOpen, slide])
+
   const sorted = useMemo(() => {
     return [...sessions].sort((a, b) => {
       const af = isFavorite(a.id, favorites)
@@ -44,9 +64,11 @@ export function ChatMenu() {
   }, [sessions, favorites])
 
   return (
-    <Modal visible={menuOpen} animationType="slide" transparent onRequestClose={closeMenu}>
+    // ANIM-03: the drawer moves in FROM THE RIGHT over 300 ms with ease-in instead of the
+    // platform slide-up, so Modal's own animation is off and the panel is animated by hand.
+    <Modal visible={menuOpen} animationType="none" transparent onRequestClose={closeMenu}>
       <Pressable style={styles.backdrop} onPress={closeMenu} />
-      <View style={styles.panel}>
+      <Animated.View style={[styles.panel, { transform: [{ translateX: slide }] }]}>
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 60) }]}>
           <Text style={styles.headerTitle}>{t.history}</Text>
         </View>
@@ -121,7 +143,7 @@ export function ChatMenu() {
             <Text style={styles.newChatText}>{t.newChat}</Text>
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
 
       <RenameChatModal
         visible={!!renaming}

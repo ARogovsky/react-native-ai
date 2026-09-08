@@ -123,12 +123,16 @@ function ModalButton({
     right: styles.buttonInlineRight,
   }[corner]
 
+  // UI-03: only the first button of the pair carries the separating line.
+  const dividerStyle =
+    corner === 'top' ? styles.dividerStacked : corner === 'left' ? styles.dividerInline : null
+
   return (
     <Pressable
       testID={testID}
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.button, cornerStyle, inline && styles.buttonInline]}
+      style={[styles.button, cornerStyle, dividerStyle, inline && styles.buttonInline]}
     >
       <Text style={[styles.buttonLabel, danger && styles.buttonLabelDanger]}>{label}</Text>
     </Pressable>
@@ -156,16 +160,18 @@ const styles = StyleSheet.create({
   hint: { ...type.caption, color: colors.textSecondary, textAlign: 'center', letterSpacing: -0.12 },
   stackedButtons: { alignItems: 'stretch' },
   inlineButtons: { flexDirection: 'row', alignItems: 'center' },
+  // UI-03: no outer border around the pair — the only line is the one BETWEEN the two
+  // buttons, added by `dividerStacked` / `dividerInline`.
   button: {
     height: layout.modalButtonHeight,
-    borderWidth: 1,
-    borderColor: colors.border,
     backgroundColor: colors.bubbleAgent,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
     boxShadow: shadows.button,
   },
+  dividerStacked: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  dividerInline: { borderRightWidth: 1, borderRightColor: colors.border },
   // The pair reads as one rounded block: only the outer corners are round (spec gives
   // 15/15/0/0 on top and 0/0/15/15 below for delete, left/right for rename).
   buttonStackedTop: {
@@ -196,5 +202,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
-  input: { ...type.message, color: colors.text, padding: 0 },
+  // UI-01: centre the value in the 26-tall field instead of letting it drift down.
+  input: {
+    ...type.message,
+    color: colors.text,
+    padding: 0,
+    textAlignVertical: 'center',
+    includeFontPadding: false,
+  },
 })
