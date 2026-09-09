@@ -9,6 +9,7 @@ import {
   Image,
   Pressable,
   ScrollView,
+  Keyboard,
   useWindowDimensions,
 } from 'react-native'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
@@ -77,6 +78,20 @@ export function AuthScreen() {
     const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150)
     return () => clearTimeout(id)
   }, [step])
+
+  /**
+   * Scrolling on a step change is not enough: the field autofocuses, the keyboard opens
+   * AFTERWARDS and shrinks the viewport, so whatever was just revealed can land under it.
+   * Device Farm run 876c438c failed exactly there — `auth-code` never became visible on a
+   * Galaxy S25, while the same build passed on iOS.
+   */
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const shown = Keyboard.addListener(showEvent, () => {
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
+    })
+    return () => shown.remove()
+  }, [])
 
   function requireLegal(): boolean {
     if (legalAccepted) return true
