@@ -59,6 +59,7 @@ export function AuthScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const scrollRef = useRef<ScrollView | null>(null)
+  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const { height: windowHeight } = useWindowDimensions()
 
   const ready = signUpLoaded && signInLoaded
@@ -88,9 +89,14 @@ export function AuthScreen() {
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
     const shown = Keyboard.addListener(showEvent, () => {
+      setKeyboardOpen(true)
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
     })
-    return () => shown.remove()
+    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
+    return () => {
+      shown.remove()
+      hidden.remove()
+    }
   }, [])
 
   function requireLegal(): boolean {
@@ -209,7 +215,14 @@ export function AuthScreen() {
     >
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, { rowGap: rootGap }]}
+        contentContainerStyle={[
+          styles.content,
+          { rowGap: keyboardOpen ? spacing.xl : rootGap },
+          // Centred content cannot be scrolled out from under the keyboard: its height equals
+          // the viewport, so scrollToEnd is a no-op and the keyboard covers the lower fields
+          // (Galaxy A56, run 25aac233). Dropping the centring pins the form to the top.
+          keyboardOpen && styles.contentKeyboardOpen,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -413,6 +426,7 @@ const styles = StyleSheet.create({
     // and the buttons block, both padded 30 on the sides. The gap is applied inline
     // (`rootGap`) because it must shrink on frames shorter than the 844 design.
   },
+  contentKeyboardOpen: { flexGrow: 0, justifyContent: 'flex-start', paddingTop: spacing.xl },
   brand: { alignItems: 'center', rowGap: spacing.lg },
   logo: { width: 242, height: 65 },
   tagline: { ...type.tagline, color: colors.brand, textAlign: 'center' },
