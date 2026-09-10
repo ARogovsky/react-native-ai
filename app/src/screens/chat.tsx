@@ -284,11 +284,13 @@ const styles = StyleSheet.create({
     columnGap: spacing.lg,
     boxShadow: shadows.glassBar,
   },
-  // UI-01: the text sat low in the field. No asymmetric vertical padding, Android's extra
-  // font padding off, and the glyphs centred in the row.
+  // UI-01, second attempt. textAlignVertical/includeFontPadding are Android-only, so round one
+  // changed nothing on iOS. The actual cause is `lineHeight` on a TextInput: iOS offsets the
+  // glyphs downward inside the line box. Dropping it (fontSize/fontFamily stay) centres them.
   input: {
     flex: 1,
-    ...type.message,
+    fontFamily: type.message.fontFamily,
+    fontSize: type.message.fontSize,
     color: colors.text,
     maxHeight: 120,
     paddingVertical: 0,

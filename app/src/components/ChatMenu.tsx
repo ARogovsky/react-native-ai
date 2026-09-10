@@ -158,9 +158,14 @@ export function ChatMenu() {
       <DeleteChatModal
         visible={!!deleting}
         onCancel={() => setDeleting(null)}
-        onConfirm={async () => {
-          if (deleting) await removeSession(deleting.id)
+        onConfirm={() => {
+          // This confirm modal is nested inside the drawer's Modal, and removeSession closes
+          // the drawer. Awaiting the delete first left both Modals dismissing at once and the
+          // dying child kept swallowing touches — the screen looked alive but nothing worked.
+          // Close the child synchronously, then delete.
+          const target = deleting
           setDeleting(null)
+          if (target) void removeSession(target.id)
         }}
       />
     </Modal>

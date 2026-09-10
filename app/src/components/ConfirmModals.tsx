@@ -202,9 +202,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
-  // UI-01: centre the value in the 26-tall field instead of letting it drift down.
+  // UI-01: same as the other fields — no `lineHeight` on a TextInput, it drops the glyphs down
+  // on iOS.
   input: {
-    ...type.message,
+    fontFamily: type.message.fontFamily,
+    fontSize: type.message.fontSize,
     color: colors.text,
     padding: 0,
     textAlignVertical: 'center',

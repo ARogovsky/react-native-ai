@@ -432,9 +432,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     justifyContent: 'center',
   },
-  // UI-01: the value used to sit low in the pill on Android.
+  // UI-01: no `lineHeight` on a TextInput — on iOS it pushes the glyphs down inside the line
+  // box, which is why the value looked low. The two flags below are the Android half.
   input: {
-    ...type.body,
+    fontFamily: type.body.fontFamily,
+    fontSize: type.body.fontSize,
     color: colors.text,
     padding: 0,
     textAlignVertical: 'center',

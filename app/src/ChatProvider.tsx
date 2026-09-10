@@ -154,10 +154,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const token = await authToken()
       if (!token) return
       await apiDelete(token, id)
-      setSessions((prev) => prev.filter((s) => s.id !== id))
-      if (id === currentSessionId) newChat()
+
+      const remaining = sessions.filter((s) => s.id !== id)
+      setSessions(remaining)
+
+      if (id !== currentSessionId) return
+
+      // Deleting the open chat used to drop the user into a blank new chat. The expectation is
+      // the opposite: fall back to the most recent surviving conversation, and start a fresh
+      // one only when nothing is left.
+      const next = [...remaining].sort((a, b) => {
+        const at = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+        const bt = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+        return bt - at
+      })[0]
+
+      if (next) await selectSession(next.id)
+      else newChat()
     },
-    [authToken, currentSessionId, newChat]
+    [authToken, currentSessionId, newChat, selectSession, sessions]
   )
 
   const rename = useCallback(
