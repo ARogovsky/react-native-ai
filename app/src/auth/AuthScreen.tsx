@@ -1,17 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Pressable,
-  ScrollView,
-  Keyboard,
-  useWindowDimensions,
-} from 'react-native'
+import { useState } from 'react'
+import { View, Text, TextInput, StyleSheet, Image, Pressable, useWindowDimensions } from 'react-native'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useSignIn, useSignUp } from '@clerk/expo/legacy'
 import { getStrings, useLang } from '../lib/i18n'
 import { SocialButtons } from './SocialButtons'
@@ -58,46 +47,22 @@ export function AuthScreen() {
   const [mode, setMode] = useState<'signUp' | 'signIn'>('signIn')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const scrollRef = useRef<ScrollView | null>(null)
-  const [keyboardOpen, setKeyboardOpen] = useState(false)
   const { height: windowHeight } = useWindowDimensions()
 
   const ready = signUpLoaded && signInLoaded
 
   /**
    * The spec frame is 390x844 and the 100 gap between the logo block and the buttons is
-   * measured on that height. A 780pt-tall device with the keyboard up has no room for it:
+   * measured on that height. A 780pt-tall device has no room for it once the keyboard is up:
    * on Device Farm the email field landed under the keyboard and the run could not reach it
-   * (run 1c2b2201, failure screenshot). So the gap keeps the spec value only on frames at
-   * least as tall as the design, and every form step scrolls its field into view.
+   * (run 1c2b2201, failure screenshot). The gap therefore keeps the spec value only on frames
+   * at least as tall as the design.
+   *
+   * Getting the focused field above the keyboard is NOT done here: KeyboardAwareScrollView
+   * does it, driven by the keyboard's own animation. That is what replaced the
+   * Keyboard.addListener + setTimeout(scrollToEnd) pair this screen used to carry.
    */
   const rootGap = windowHeight >= 844 ? layout.loginGap : spacing.xxl + spacing.xl
-
-  useEffect(() => {
-    if (step === 'choose') return
-    // Shortly after the field mounts, so the keyboard height is already applied.
-    const id = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150)
-    return () => clearTimeout(id)
-  }, [step])
-
-  /**
-   * Scrolling on a step change is not enough: the field autofocuses, the keyboard opens
-   * AFTERWARDS and shrinks the viewport, so whatever was just revealed can land under it.
-   * Device Farm run 876c438c failed exactly there — `auth-code` never became visible on a
-   * Galaxy S25, while the same build passed on iOS.
-   */
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const shown = Keyboard.addListener(showEvent, () => {
-      setKeyboardOpen(true)
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50)
-    })
-    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
-    return () => {
-      shown.remove()
-      hidden.remove()
-    }
-  }, [])
 
   function requireLegal(): boolean {
     if (legalAccepted) return true
@@ -209,23 +174,18 @@ export function AuthScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    // KeyboardAwareScrollView adds the keyboard height as bottom space and scrolls the focused
+    // TextInput above it on the keyboard's own frames — so the centred layout can stay, and no
+    // timer decides whether a field is reachable. `bottomOffset` is the gap the field keeps
+    // from the keyboard edge.
+    <KeyboardAwareScrollView
+      testID="auth-scroll"
       style={styles.screen}
+      bottomOffset={spacing.xl}
+      contentContainerStyle={[styles.content, { rowGap: rootGap }]}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[
-          styles.content,
-          { rowGap: keyboardOpen ? spacing.xl : rootGap },
-          // Centred content cannot be scrolled out from under the keyboard: its height equals
-          // the viewport, so scrollToEnd is a no-op and the keyboard covers the lower fields
-          // (Galaxy A56, run 25aac233). Dropping the centring pins the form to the top.
-          keyboardOpen && styles.contentKeyboardOpen,
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
         <View style={styles.brand}>
           <Image source={images.logo} style={styles.logo} resizeMode="contain" />
           <Text style={styles.tagline}>{t.knowThyself}</Text>
@@ -376,8 +336,7 @@ export function AuthScreen() {
             </Text>
           )}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   )
 }
 
@@ -426,7 +385,6 @@ const styles = StyleSheet.create({
     // and the buttons block, both padded 30 on the sides. The gap is applied inline
     // (`rootGap`) because it must shrink on frames shorter than the 844 design.
   },
-  contentKeyboardOpen: { flexGrow: 0, justifyContent: 'flex-start', paddingTop: spacing.xl },
   brand: { alignItems: 'center', rowGap: spacing.lg },
   logo: { width: 242, height: 65 },
   tagline: { ...type.tagline, color: colors.brand, textAlign: 'center' },

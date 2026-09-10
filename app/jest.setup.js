@@ -7,3 +7,11 @@
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 )
+
+// react-native-keyboard-controller is a native module: under Jest it has no view manager and
+// no keyboard events. The package ships its own mock, which maps KeyboardAwareScrollView to a
+// plain ScrollView and KeyboardAvoidingView to a View, so screens still render and the
+// keyboard state reads as "hidden".
+jest.mock('react-native-keyboard-controller', () =>
+  require('react-native-keyboard-controller/jest')
+)

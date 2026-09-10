@@ -1,14 +1,5 @@
-import {
-  View,
-  Text,
-  KeyboardAvoidingView,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  Keyboard,
-  Platform,
-  Pressable,
-} from 'react-native'
+import { View, Text, StyleSheet, TextInput, ScrollView, Keyboard, Pressable } from 'react-native'
+import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller'
 import 'react-native-get-random-values'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native'
@@ -31,27 +22,18 @@ export function Chat() {
   const { t } = useLang()
 
   const [input, setInput] = useState('')
-  const [keyboardOpen, setKeyboardOpen] = useState(false)
+  // Reported by the library from the native keyboard frames, not by a listener we register:
+  // used only to decide whether the safe-area inset under the input pill is still needed.
+  const keyboardOpen = useKeyboardState((state) => state.isVisible)
   const scrollViewRef = useRef<ScrollView | null>(null)
 
+  // A new message (or a streamed token) pins the list to its end. This is chat behaviour, not
+  // keyboard handling: the keyboard is handled by KeyboardAvoidingView below, which moves the
+  // whole screen on the keyboard's own frames.
   useEffect(() => {
     const id = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50)
     return () => clearTimeout(id)
   }, [messages, loading])
-
-  // UX-01: when the keyboard appears the list must end up above it, not behind it.
-  useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const shown = Keyboard.addListener(showEvent, () => {
-      setKeyboardOpen(true)
-      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50)
-    })
-    const hidden = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false))
-    return () => {
-      shown.remove()
-      hidden.remove()
-    }
-  }, [])
 
   async function onSend() {
     const prompt = input.trim()
@@ -76,12 +58,15 @@ export function Chat() {
   const awaitingFirstToken = loading && last?.role === 'assistant' && !last.content
 
   return (
-    // UX-01: the keyboard used to cover the last messages. The WHOLE screen now avoids the
-    // keyboard (not just the input bar), so the message list shrinks instead of being
-    // overlapped, and the list is pinned to its end whenever the keyboard opens.
+    // UX-01: the keyboard used to cover the last messages. This is the keyboard-controller
+    // KeyboardAvoidingView, not the react-native one: `translate-with-padding` is the mode the
+    // library documents for chat layouts — the screen moves up in sync with the native keyboard
+    // animation, identically on iOS and Android, so nothing is left behind the keyboard and no
+    // timer or platform branch is involved.
     <KeyboardAvoidingView
+      testID="chat-keyboard-avoiding"
       style={styles.screen}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior="translate-with-padding"
     >
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, layout.topBarPaddingTop) }]}>
         <RoundButton

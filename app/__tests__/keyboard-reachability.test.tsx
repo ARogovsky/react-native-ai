@@ -1,12 +1,20 @@
+import fs from 'fs'
+import path from 'path'
 import React from 'react'
-import { Keyboard, Platform, ScrollView } from 'react-native'
+import { Keyboard, ScrollView } from 'react-native'
 import { fireEvent, render } from '@testing-library/react-native'
 
 /**
- * The keyboard covering an input has broken two Device Farm runs (1c2b2201, 876c438c), both
- * times because a screen scrolled on a state change but not when the keyboard actually
- * appeared. This asserts the mechanism itself: the screen subscribes to the keyboard-show
- * event and scrolls in response. It fails if that listener is dropped.
+ * The keyboard covering an input has broken three Device Farm runs (1c2b2201, 876c438c,
+ * 25aac233) — every time because the screen decided by timer whether a field was above the
+ * keyboard, and on Android the timer lost the race.
+ *
+ * Both screens now hand that job to react-native-keyboard-controller, which follows the native
+ * keyboard animation. This suite asserts the new mechanism is wired AND that the timer-based
+ * one has not come back: no screen may subscribe to keyboardWillShow / keyboardDidShow itself.
+ *
+ * The library is replaced by the mock it ships (jest.setup.js): KeyboardAwareScrollView renders
+ * as a ScrollView and KeyboardAvoidingView as a View, both with our props passed through.
  */
 
 jest.mock('@clerk/expo/legacy', () => ({
@@ -24,45 +32,92 @@ jest.mock('@clerk/expo/apple', () => ({
   useSignInWithApple: () => ({ startAppleAuthenticationFlow: jest.fn() }),
 }))
 
-import { AuthScreen } from '../src/auth/AuthScreen'
+// Chat screen dependencies that need a native module or a navigator.
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+}))
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 47, bottom: 34, left: 0, right: 0 }),
+}))
+jest.mock('@expo/react-native-action-sheet', () => ({
+  useActionSheet: () => ({ showActionSheetWithOptions: jest.fn() }),
+}))
+jest.mock('../src/components/SendIcon', () => ({ SendIcon: () => null }))
+jest.mock('../src/ChatProvider', () => ({
+  useChat: () => ({
+    messages: [],
+    send: jest.fn(),
+    loading: false,
+    openMenu: jest.fn(),
+  }),
+}))
 
-const SHOW_EVENT = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+import { AuthScreen } from '../src/auth/AuthScreen'
+import { Chat } from '../src/screens/chat'
+
+/** Events the hand-rolled workaround used to subscribe to. */
+const SHOW_EVENTS = ['keyboardWillShow', 'keyboardDidShow']
 
 describe('keyboard reachability', () => {
-  it('the login screen subscribes to the keyboard-show event', () => {
+  it('the login form lives in a keyboard-aware scroll container', () => {
+    const view = render(<AuthScreen />)
+
+    // The library's mock renders KeyboardAwareScrollView as a ScrollView, so the element the
+    // screen created is read back by type: its props are exactly the ones the screen passed to
+    // the keyboard-aware container.
+    const container = view.UNSAFE_getByType(ScrollView)
+    expect(container.props.testID).toBe('auth-scroll')
+    // bottomOffset exists only on KeyboardAwareScrollView: the distance the focused field keeps
+    // from the keyboard edge after the library scrolls it into view.
+    expect(typeof container.props.bottomOffset).toBe('number')
+    expect(container.props.bottomOffset).toBeGreaterThan(0)
+
+    // The fields are inside that container, not next to it.
+    fireEvent.press(view.getByTestId('auth-legal'))
+    fireEvent.press(view.getByTestId('auth-email-start'))
+    expect(view.getByTestId('auth-email')).toBeTruthy()
+  })
+
+  it('the login screen no longer subscribes to keyboard-show events itself', () => {
     const spy = jest.spyOn(Keyboard, 'addListener')
     render(<AuthScreen />)
 
     const events = spy.mock.calls.map(([event]) => event)
-    expect(events).toContain(SHOW_EVENT)
+    expect(events.filter((event) => SHOW_EVENTS.includes(event as string))).toHaveLength(0)
     spy.mockRestore()
   })
 
-  it('the login screen scrolls to the end when the keyboard opens', () => {
-    jest.useFakeTimers()
-    const listeners: Record<string, () => void> = {}
-    const spy = jest
-      .spyOn(Keyboard, 'addListener')
-      .mockImplementation(((event: string, handler: () => void) => {
-        listeners[event] = handler
-        return { remove: jest.fn() }
-      }) as never)
+  it('the chat screen avoids the keyboard through the library, in chat mode', () => {
+    const spy = jest.spyOn(Keyboard, 'addListener')
+    const view = render(<Chat />)
 
-    const view = render(<AuthScreen />)
-    // Open the email step so there is a field on screen at all.
-    fireEvent.press(view.getByTestId('auth-legal'))
-    fireEvent.press(view.getByTestId('auth-email-start'))
+    const avoiding = view.getByTestId('chat-keyboard-avoiding')
+    // `translate-with-padding` is the mode the library documents for chat layouts; `padding`
+    // or a Platform.OS branch would mean the react-native component came back.
+    expect(avoiding.props.behavior).toBe('translate-with-padding')
+    // Input and send button are inside it.
+    expect(view.getByTestId('chat-input')).toBeTruthy()
+    expect(view.getByTestId('chat-send')).toBeTruthy()
 
-    const scroll = view.UNSAFE_getByType(ScrollView)
-    const scrollToEnd = jest.fn()
-    ;(scroll.instance as unknown as { scrollToEnd: unknown }).scrollToEnd = scrollToEnd
-
-    listeners[SHOW_EVENT]?.()
-    jest.advanceTimersByTime(200)
-
-    expect(scrollToEnd).toHaveBeenCalled()
-
+    const events = spy.mock.calls.map(([event]) => event)
+    expect(events.filter((event) => SHOW_EVENTS.includes(event as string))).toHaveLength(0)
     spy.mockRestore()
-    jest.useRealTimers()
+  })
+
+  /**
+   * KeyboardAwareScrollView / KeyboardAvoidingView only follow the keyboard when
+   * KeyboardProvider is above them, and without it they silently do nothing — no crash, no
+   * warning, which is the failure mode that is expensive to notice on a device.
+   *
+   * App.tsx cannot be mounted here: babel-preset-expo inlines EXPO_PUBLIC_* at transform time,
+   * so the Clerk key check inside it cannot be satisfied from a test. The composition is
+   * therefore asserted on the source: the provider must enclose BOTH auth states.
+   */
+  it('App.tsx keeps KeyboardProvider above both auth states', () => {
+    const source = fs.readFileSync(path.join(__dirname, '..', 'App.tsx'), 'utf8')
+
+    expect(source).toMatch(
+      /<KeyboardProvider[\s\S]*<Show when="signed-out">[\s\S]*<Show when="signed-in">[\s\S]*<\/KeyboardProvider>/
+    )
   })
 })

@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { LogBox, View, ActivityIndicator, Text } from 'react-native'
 import { ClerkProvider, ClerkLoaded, ClerkLoading, Show } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { AuthScreen } from './src/auth/AuthScreen'
 import { SignedInApp } from './src/SignedInApp'
 import { ConnectivityGate } from './src/screens/no-internet'
@@ -76,6 +77,15 @@ export default function App() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        {/* Keyboard handling for the WHOLE app, both auth states: the screens use
+            KeyboardAwareScrollView / KeyboardAvoidingView from react-native-keyboard-controller
+            and those need this provider above them. It replaces the Keyboard.addListener +
+            setTimeout(scrollToEnd) pairs that decided by race whether a field ended up under
+            the keyboard on Android (Device Farm runs 1c2b2201 / 876c438c / 25aac233).
+            The app is edge-to-edge on Android (android/gradle.properties edgeToEdgeEnabled),
+            so the bars are declared translucent and edge-to-edge is preserved — otherwise the
+            library would apply its own top padding and turn edge-to-edge off. */}
+        <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
         <ThemeContext.Provider
           value={{ theme: getTheme(theme), themeName: theme, setTheme: _setTheme }}
         >
@@ -99,6 +109,7 @@ export default function App() {
             </ClerkLoaded>
           </ConnectivityGate>
         </ThemeContext.Provider>
+        </KeyboardProvider>
       </GestureHandlerRootView>
     </ClerkProvider>
   )
