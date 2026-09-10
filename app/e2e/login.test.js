@@ -25,6 +25,13 @@ const WDA_PATH = readWdaPath();
 
 const PLATFORM = (process.env.DEVICEFARM_DEVICE_PLATFORM_NAME || 'iOS').toLowerCase();
 const IS_IOS = PLATFORM.includes('ios');
+// One id for the app under test: the capabilities below and the "did we leave for the
+// browser" check must talk about the same package/bundle.
+const APP_ID = IS_IOS
+  ? process.env.APP_BUNDLE_ID || 'com.unkd.elli'
+  : process.env.APP_PACKAGE || 'com.elli.app';
+/** Appium "Get App State": 4 = running in foreground. */
+const STATE_FOREGROUND = 4;
 // run_devicefarm.py generates a per-run address + password and ships them in the test
 // package; the account is deleted right after the run. Nothing is stored in the repo.
 function readFixture() {
@@ -141,14 +148,14 @@ describe('ELLI login on a real device', function () {
         'appium:newCommandTimeout': 120,
         ...(IS_IOS
           ? {
-              'appium:bundleId': process.env.APP_BUNDLE_ID || 'com.unkd.elli',
+              'appium:bundleId': APP_ID,
               // Device Farm prebuilds WebDriverAgent; letting the driver build it fails
               // with "xcodebuild failed with code 65".
               ...(WDA_PATH
                 ? { 'appium:usePrebuiltWDA': true, 'appium:derivedDataPath': WDA_PATH }
                 : {}),
             }
-          : { 'appium:appPackage': process.env.APP_PACKAGE || 'com.elli.app' }),
+          : { 'appium:appPackage': APP_ID }),
       },
     });
   });
@@ -376,23 +383,28 @@ describe('ELLI login on a real device', function () {
     await tap(driver, 'home-profile');
     await tap(driver, 'profile-feedback');
 
-    // The app losing the screen is the portable signal; Safari needs a while before its
-    // address field reports the host, so waiting for the URL alone is flaky on iOS.
-    // Per the handoff the destination is now a Google form (forms.gle/... per language),
-    // so the host markers cover both that and the older e-lli.com contact page.
+    // What is asserted is the app state, not what the browser renders. Reading the browser's
+    // page text was flaky: Safari collapses its address bar and the Google form's markup and
+    // language change, so the host string was not always there even though the form was on
+    // screen (run ae6f55b0 failed exactly that way while the form title was in the dump).
+    // queryAppState is a driver command (XCUITest / UiAutomator2), so the same check works on
+    // both platforms; it stays valid as long as we leave through Linking.openURL, i.e. to an
+    // external browser. If this ever becomes expo-web-browser (Custom Tabs /
+    // SFSafariViewController) the app KEEPS the foreground and this assertion has to change.
     await driver.waitUntil(
       async () => {
-        const text = await pageText(driver).catch(() => '');
-        const handedOff = !text.includes('profile-feedback');
-        const host = ['e-lli.com', 'forms.gle', 'docs.google.com', 'google.com'].some((m) =>
-          text.includes(m)
-        );
-        return handedOff || host;
+        const state = await driver.queryAppState(APP_ID).catch(() => STATE_FOREGROUND);
+        if (state !== STATE_FOREGROUND) return true;
+        if (IS_IOS) return false;
+        // Android: the state can lag a beat behind the launched intent, so the foreground
+        // package is the second signal.
+        const pkg = await driver.getCurrentPackage().catch(() => APP_ID);
+        return pkg !== APP_ID;
       },
       {
         timeout: 60000,
         interval: 1000,
-        timeoutMsg: 'the feedback button did not hand the screen to the browser',
+        timeoutMsg: 'the feedback button did not hand the screen to another app',
       }
     );
   });
