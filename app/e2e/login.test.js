@@ -316,6 +316,33 @@ describe('ELLI login on a real device', function () {
 
     const input = await driver.$(selector('chat-input'));
     await input.waitForDisplayed({ timeout: TIMEOUT });
+
+    // Reported bug: with the keyboard open the chat does not move up. Measured, not assumed —
+    // the input pill must sit HIGHER than before the keyboard appeared. The screen delegates
+    // this to KeyboardAvoidingView (behavior="translate-with-padding") from
+    // react-native-keyboard-controller.
+    const windowSize = await driver.getWindowSize();
+    const before = await input.getLocation();
+    await input.click();
+    await driver.waitUntil(async () => driver.isKeyboardShown(), {
+      timeout: 15000,
+      interval: 500,
+      timeoutMsg: 'the keyboard never opened on the chat screen',
+    });
+    // The keyboard animates; measuring on the first frame reports the old position.
+    await driver.pause(1500);
+    const after = await input.getLocation();
+    const size = await input.getSize();
+    console.log(
+      'chat input: y before=' + before.y + ' after=' + after.y + ' height=' + size.height +
+        ' bottom=' + (after.y + size.height) + ' window height=' + windowSize.height
+    );
+    if (after.y >= before.y) {
+      throw new Error(
+        'the chat did not rise when the keyboard opened: input y ' + before.y + ' -> ' + after.y
+      );
+    }
+
     await type(driver, 'chat-input', PROMPT);
     await tap(driver, 'chat-send');
 
