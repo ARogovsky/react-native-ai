@@ -1,5 +1,9 @@
 import { View, Text, StyleSheet, TextInput, ScrollView, Keyboard, Pressable } from 'react-native'
-import { KeyboardAvoidingView, useKeyboardState } from 'react-native-keyboard-controller'
+import {
+  KeyboardChatScrollView,
+  KeyboardStickyView,
+  useKeyboardState,
+} from 'react-native-keyboard-controller'
 import 'react-native-get-random-values'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native'
@@ -26,10 +30,13 @@ export function Chat() {
   // used only to decide whether the safe-area inset under the input pill is still needed.
   const keyboardOpen = useKeyboardState((state) => state.isVisible)
   const scrollViewRef = useRef<ScrollView | null>(null)
+  // The input bar stands between the list and the bottom of the screen, so the list has to be
+  // told how tall it is: the keyboard then extends the scrollable area by
+  // (keyboardHeight - barHeight) instead of the full keyboard height.
+  const [barHeight, setBarHeight] = useState(layout.inputHeight + layout.bottomBarPaddingBottom)
 
   // A new message (or a streamed token) pins the list to its end. This is chat behaviour, not
-  // keyboard handling: the keyboard is handled by KeyboardAvoidingView below, which moves the
-  // whole screen on the keyboard's own frames.
+  // keyboard handling: the keyboard is handled by KeyboardChatScrollView below.
   useEffect(() => {
     const id = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 50)
     return () => clearTimeout(id)
@@ -58,16 +65,13 @@ export function Chat() {
   const awaitingFirstToken = loading && last?.role === 'assistant' && !last.content
 
   return (
-    // UX-01: the keyboard used to cover the last messages. This is the keyboard-controller
-    // KeyboardAvoidingView, not the react-native one: `translate-with-padding` is the mode the
-    // library documents for chat layouts — the screen moves up in sync with the native keyboard
-    // animation, identically on iOS and Android, so nothing is left behind the keyboard and no
-    // timer or platform branch is involved.
-    <KeyboardAvoidingView
-      testID="chat-keyboard-avoiding"
-      style={styles.screen}
-      behavior="translate-with-padding"
-    >
+    // UX-01. Nothing here animates the container: the previous approach
+    // (KeyboardAvoidingView behavior="translate-with-padding") moved the whole screen, which works
+    // on an empty chat but leaves the bottom of a scrollable conversation behind the keyboard —
+    // the library documents that as the edge case of that mode. KeyboardChatScrollView instead
+    // keeps the layout untouched and extends the scroll area (contentInset on iOS,
+    // ClippingScrollView on Android), and KeyboardStickyView lifts the input bar.
+    <View style={styles.screen}>
       <View style={[styles.topBar, { paddingTop: Math.max(insets.top, layout.topBarPaddingTop) }]}>
         <RoundButton
           icon="chevron-back"
@@ -77,11 +81,19 @@ export function Chat() {
         <RoundButton icon="ellipsis-horizontal" accessibilityLabel={t.yourChats} onPress={openMenu} testID="header-menu" />
       </View>
 
-      <ScrollView
+      <KeyboardChatScrollView
+        testID="chat-list"
         ref={scrollViewRef}
         style={styles.list}
         contentContainerStyle={styles.listContent}
         keyboardDismissMode="on-drag"
+        // The bar below is not part of this scroll view, so the keyboard only has to push the
+        // content by (keyboardHeight - barHeight).
+        offset={barHeight}
+        // Telegram/WhatsApp behaviour: the bottom of the conversation stays visible whatever the
+        // scroll position was. `whenAtEnd` would leave a scrolled-back chat where it is, which is
+        // exactly the state that was reported as broken.
+        keyboardLiftBehavior="always"
       >
         {messages.map((message, index) =>
           awaitingFirstToken && index === messages.length - 1 ? (
@@ -92,9 +104,12 @@ export function Chat() {
             <Bubble key={index} message={message} onLongPress={showMessageActions} />
           )
         )}
-      </ScrollView>
+      </KeyboardChatScrollView>
 
-      <View
+      {/* The bar rides the keyboard: KeyboardStickyView translates it by the keyboard height on
+          the keyboard's own frames, without a layout pass. */}
+      <KeyboardStickyView
+        onLayout={(event) => setBarHeight(event.nativeEvent.layout.height)}
         style={[
           styles.bottomBar,
           {
@@ -129,8 +144,8 @@ export function Chat() {
               <SendIcon />
             </Pressable>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardStickyView>
+    </View>
   )
 }
 

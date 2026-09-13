@@ -364,6 +364,43 @@ describe('ELLI login on a real device', function () {
         throw new Error('chat returned the error bubble: ' + answer.slice(0, 200));
       }
     }
+
+    // The reported defect only shows up once the conversation is taller than the screen: an
+    // empty chat lifted fine while a filled one kept its bottom (last bubble + input) behind the
+    // keyboard. One more turn fills the viewport, then the keyboard goes up and BOTH the input
+    // and the last bubble have to be above it.
+    await type(driver, 'chat-input', PROMPT);
+    await tap(driver, 'chat-send');
+    await driver.waitUntil(
+      async () => (await driver.$$(selector('chat-bubble-agent'))).length >= 2,
+      { timeout: ANSWER_TIMEOUT, interval: 2000, timeoutMsg: 'the second answer never arrived' }
+    );
+
+    const filledInput = await driver.$(selector('chat-input'));
+    await filledInput.click();
+    await driver.waitUntil(async () => driver.isKeyboardShown(), {
+      timeout: 15000,
+      interval: 500,
+      timeoutMsg: 'the keyboard never opened on the filled chat',
+    });
+    await driver.pause(1500);
+
+    const agentBubbles = await driver.$$(selector('chat-bubble-agent'));
+    const lastBubble = agentBubbles[agentBubbles.length - 1];
+    const bubbleLocation = await lastBubble.getLocation();
+    const bubbleSize = await lastBubble.getSize();
+    const inputLocation = await filledInput.getLocation();
+    const bubbleBottom = bubbleLocation.y + bubbleSize.height;
+    console.log(
+      'filled chat with keyboard up: last bubble bottom=' + bubbleBottom +
+        ' input y=' + inputLocation.y + ' bubbles=' + agentBubbles.length
+    );
+    if (bubbleBottom > inputLocation.y) {
+      throw new Error(
+        'the last message is behind the input/keyboard: bubble bottom ' + bubbleBottom +
+          ' vs input y ' + inputLocation.y
+      );
+    }
   });
 
   // The history drawer belongs on the right: it slides out of the header button in the

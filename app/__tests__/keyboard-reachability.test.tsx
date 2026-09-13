@@ -87,15 +87,21 @@ describe('keyboard reachability', () => {
     spy.mockRestore()
   })
 
-  it('the chat screen avoids the keyboard through the library, in chat mode', () => {
+  it('the chat list is the keyboard-aware chat scroll view, lifting on every open', () => {
     const spy = jest.spyOn(Keyboard, 'addListener')
     const view = render(<Chat />)
 
-    const avoiding = view.getByTestId('chat-keyboard-avoiding')
-    // `translate-with-padding` is the mode the library documents for chat layouts; `padding`
-    // or a Platform.OS branch would mean the react-native component came back.
-    expect(avoiding.props.behavior).toBe('translate-with-padding')
-    // Input and send button are inside it.
+    // The library's mock renders KeyboardChatScrollView as a ScrollView; the props read back are
+    // the ones the screen passed. A container that animates the layout instead (the old
+    // KeyboardAvoidingView with behavior="translate-with-padding") leaves the bottom of a
+    // scrollable conversation under the keyboard, which is what was reported.
+    const list = view.UNSAFE_getByType(ScrollView)
+    expect(list.props.testID).toBe('chat-list')
+    expect(list.props.keyboardLiftBehavior).toBe('always')
+    // The input bar is not inside the list, so its height must be reported as the offset.
+    expect(typeof list.props.offset).toBe('number')
+    expect(list.props.offset).toBeGreaterThan(0)
+
     expect(view.getByTestId('chat-input')).toBeTruthy()
     expect(view.getByTestId('chat-send')).toBeTruthy()
 
