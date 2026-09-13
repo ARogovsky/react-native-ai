@@ -1,9 +1,5 @@
 import { View, Text, StyleSheet, TextInput, ScrollView, Keyboard, Pressable } from 'react-native'
-import {
-  KeyboardChatScrollView,
-  KeyboardStickyView,
-  useKeyboardState,
-} from 'react-native-keyboard-controller'
+import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller'
 import 'react-native-get-random-values'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native'
@@ -26,9 +22,6 @@ export function Chat() {
   const { t } = useLang()
 
   const [input, setInput] = useState('')
-  // Reported by the library from the native keyboard frames, not by a listener we register:
-  // used only to decide whether the safe-area inset under the input pill is still needed.
-  const keyboardOpen = useKeyboardState((state) => state.isVisible)
   const scrollViewRef = useRef<ScrollView | null>(null)
   // The input bar stands between the list and the bottom of the screen, so the list has to be
   // told how tall it is: the keyboard then extends the scrollable area by
@@ -112,13 +105,11 @@ export function Chat() {
         onLayout={(event) => setBarHeight(event.nativeEvent.layout.height)}
         style={[
           styles.bottomBar,
-          {
-            // With the keyboard up the safe-area inset is consumed by the keyboard itself,
-            // so keeping the full 30 there would push the pill needlessly high.
-            paddingBottom: keyboardOpen
-              ? spacing.md
-              : Math.max(insets.bottom, layout.bottomBarPaddingBottom),
-          },
+          // The padding stays the same whether the keyboard is up or not. Shrinking it with the
+          // keyboard made the bar shorter, which made the list taller, which left `offset` (the
+          // bar height) too small: on a Pixel 10 the last bubble ended 52 px BELOW the top of the
+          // bar (CodeBuild fe51091f). A constant bar height keeps the list's inset honest.
+          { paddingBottom: Math.max(insets.bottom, layout.bottomBarPaddingBottom) },
         ]}
       >
           <View style={styles.inputPill}>
