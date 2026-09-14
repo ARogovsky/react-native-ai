@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, TextInput, ScrollView, Keyboard, Pressable } from 'react-native'
 import { KeyboardChatScrollView, KeyboardStickyView } from 'react-native-keyboard-controller'
+import { useSharedValue } from 'react-native-reanimated'
 import 'react-native-get-random-values'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigation } from '@react-navigation/native'
@@ -23,10 +24,10 @@ export function Chat() {
 
   const [input, setInput] = useState('')
   const scrollViewRef = useRef<ScrollView | null>(null)
-  // The input bar stands between the list and the bottom of the screen, so the list has to be
-  // told how tall it is: the keyboard then extends the scrollable area by
-  // (keyboardHeight - barHeight) instead of the full keyboard height.
-  const [barHeight, setBarHeight] = useState(layout.inputHeight + layout.bottomBarPaddingBottom)
+  // The input bar sits between the list and the bottom of the screen AND moves up with the
+  // keyboard, so the scrollable area has to grow by the keyboard height PLUS the bar height. The
+  // library takes that extra as a shared value, fed from the bar's own layout.
+  const barPadding = useSharedValue(layout.inputHeight + layout.bottomBarPaddingBottom)
 
   // A new message (or a streamed token) pins the list to its end. This is chat behaviour, not
   // keyboard handling: the keyboard is handled by KeyboardChatScrollView below.
@@ -80,9 +81,11 @@ export function Chat() {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         keyboardDismissMode="on-drag"
-        // The bar below is not part of this scroll view, so the keyboard only has to push the
-        // content by (keyboardHeight - barHeight).
-        offset={barHeight}
+        // The bar rides the keyboard, so its height has to be ADDED to the scrollable area, which
+        // is what extraContentPadding does. `offset` was the wrong prop: it SUBTRACTS from the
+        // keyboard push (it is meant for bars that stay put, e.g. bottom tabs), and with it the
+        // last bubble ended 144 px under the bar on a Pixel 10 (CodeBuild 1da60a85).
+        extraContentPadding={barPadding}
         // Telegram/WhatsApp behaviour: the bottom of the conversation stays visible whatever the
         // scroll position was. `whenAtEnd` would leave a scrolled-back chat where it is, which is
         // exactly the state that was reported as broken.
@@ -102,7 +105,9 @@ export function Chat() {
       {/* The bar rides the keyboard: KeyboardStickyView translates it by the keyboard height on
           the keyboard's own frames, without a layout pass. */}
       <KeyboardStickyView
-        onLayout={(event) => setBarHeight(event.nativeEvent.layout.height)}
+        onLayout={(event) => {
+          barPadding.value = event.nativeEvent.layout.height
+        }}
         style={[
           styles.bottomBar,
           // The padding stays the same whether the keyboard is up or not. Shrinking it with the

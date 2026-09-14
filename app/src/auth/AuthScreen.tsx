@@ -181,6 +181,11 @@ export function AuthScreen() {
     <KeyboardAwareScrollView
       testID="auth-scroll"
       style={styles.screen}
+      // `layout` appends a spacer instead of extending the scroll area with an inset. Required
+      // here: this content is a flex layout (flexGrow + centring) and with the default `insets`
+      // mode nothing reflows — on an iPhone 15 Pro the "Send code" button below the fields stayed
+      // visible=false under the keyboard and the run could not tap it (Device Farm run 8021ee51).
+      mode="layout"
       bottomOffset={spacing.xl}
       contentContainerStyle={[styles.content, { rowGap: rootGap }]}
       keyboardShouldPersistTaps="handled"

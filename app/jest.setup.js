@@ -15,3 +15,10 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 jest.mock('react-native-keyboard-controller', () =>
   require('react-native-keyboard-controller/jest')
 )
+
+// Reanimated is used for exactly one shared value (the chat input bar height handed to
+// KeyboardChatScrollView). The real module needs the native worklets runtime, so the single hook
+// we call is stubbed here.
+jest.mock('react-native-reanimated', () => ({
+  useSharedValue: (initial) => ({ value: initial }),
+}))

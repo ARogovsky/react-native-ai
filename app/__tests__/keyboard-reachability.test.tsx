@@ -98,9 +98,10 @@ describe('keyboard reachability', () => {
     const list = view.UNSAFE_getByType(ScrollView)
     expect(list.props.testID).toBe('chat-list')
     expect(list.props.keyboardLiftBehavior).toBe('always')
-    // The input bar is not inside the list, so its height must be reported as the offset.
-    expect(typeof list.props.offset).toBe('number')
-    expect(list.props.offset).toBeGreaterThan(0)
+    // The bar rides the keyboard, so its height is EXTRA scrollable space, not an offset that
+    // shrinks the keyboard push. As `offset` it left the last bubble under the bar.
+    expect(list.props.offset).toBeUndefined()
+    expect(list.props.extraContentPadding.value).toBeGreaterThan(0)
 
     expect(view.getByTestId('chat-input')).toBeTruthy()
     expect(view.getByTestId('chat-send')).toBeTruthy()
